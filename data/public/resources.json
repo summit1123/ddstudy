@@ -1,0 +1,80 @@
+{
+  "datasetId": "daeum-hangeoleum-official-education-resources-v1",
+  "generatedAt": "2026-05-29",
+  "sourcePolicy": "Small seed of official-source metadata only. Records point to public official pages and do not reproduce restricted files.",
+  "records": [
+    {
+      "id": "neis-open-api",
+      "kind": "api-source",
+      "title": "NEIS education information Open API",
+      "sourceName": "나이스 교육정보 개방 포털",
+      "sourceUrl": "https://open.neis.go.kr/portal/guide/apiIntroPage.do",
+      "verifiedAt": "2026-05-29",
+      "licenseNote": "Use requires compliance with NEIS portal terms and issued API key requirements.",
+      "evidence": "Official portal describes NEIS public education data Open APIs for developer use."
+    },
+    {
+      "id": "moe-2022-curriculum-release",
+      "kind": "curriculum-release",
+      "title": "2022 개정 초·중등학교 및 특수교육 교육과정 확정·발표",
+      "sourceName": "교육부",
+      "sourceUrl": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=294&boardSeq=93459&lev=0&searchType=null&statusY=",
+      "verifiedAt": "2026-05-29",
+      "licenseNote": "Check the Ministry of Education page and attached files for current 공공누리 terms before redistribution.",
+      "curriculumRevision": "2022 개정",
+      "evidence": "Official Ministry of Education release dated 2022-12-22 announces the revised curriculum."
+    },
+    {
+      "id": "ncic-2022-elementary-korean-achievement-standards",
+      "kind": "achievement-standard-index",
+      "title": "국어 성취기준",
+      "sourceName": "NCIC 국가교육과정정보센터",
+      "sourceUrl": "https://ncic.re.kr/",
+      "verifiedAt": "2026-05-29",
+      "licenseNote": "Metadata link only. Verify NCIC copyright policy and file-specific terms before embedding or redistributing source files.",
+      "curriculumRevision": "2022 개정",
+      "schoolLevel": "초등학교",
+      "subject": "국어",
+      "evidence": "NCIC official page lists 국어 성취기준 for 2022 개정 시기 and 초등학교(2022.12)."
+    },
+    {
+      "id": "ncic-2022-elementary-math-achievement-standards",
+      "kind": "achievement-standard-index",
+      "title": "수학 성취기준",
+      "sourceName": "NCIC 국가교육과정정보센터",
+      "sourceUrl": "https://ncic.re.kr/",
+      "verifiedAt": "2026-05-29",
+      "licenseNote": "Metadata link only. Verify NCIC copyright policy and file-specific terms before embedding or redistributing source files.",
+      "curriculumRevision": "2022 개정",
+      "schoolLevel": "초등학교",
+      "subject": "수학",
+      "evidence": "NCIC official page lists 수학 성취기준 for 2022 개정 시기 and 초등학교(2022.12)."
+    },
+    {
+      "id": "ncic-2022-middle-english-achievement-standards",
+      "kind": "achievement-standard-index",
+      "title": "영어 성취기준",
+      "sourceName": "NCIC 국가교육과정정보센터",
+      "sourceUrl": "https://ncic.re.kr/",
+      "verifiedAt": "2026-05-29",
+      "licenseNote": "Metadata link only. Verify NCIC copyright policy and file-specific terms before embedding or redistributing source files.",
+      "curriculumRevision": "2022 개정",
+      "schoolLevel": "중학교",
+      "subject": "영어",
+      "evidence": "NCIC official page lists 영어 성취기준 for 2022 개정 시기 and 중학교(2022.12)."
+    },
+    {
+      "id": "ncic-2022-high-common-math1-achievement-standards",
+      "kind": "achievement-standard-index",
+      "title": "공통수학1 성취기준",
+      "sourceName": "NCIC 국가교육과정정보센터",
+      "sourceUrl": "https://ncic.re.kr/",
+      "verifiedAt": "2026-05-29",
+      "licenseNote": "Metadata link only. Verify NCIC copyright policy and file-specific terms before embedding or redistributing source files.",
+      "curriculumRevision": "2022 개정",
+      "schoolLevel": "고등학교",
+      "subject": "공통수학1",
+      "evidence": "NCIC official page lists 공통수학1 성취기준 for 2022 개정 시기 and 고등학교(2022.12)."
+    }
+  ]
+}

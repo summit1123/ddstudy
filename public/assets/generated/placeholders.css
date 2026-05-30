@@ -1,0 +1,15 @@
+.generated-asset-placeholder {
+  background: #f4f1eb;
+  border: 1px solid #d7ddd8;
+  color: #5f6d68;
+  display: grid;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 12rem;
+  place-items: center;
+}
+
+.generated-asset-placeholder::after {
+  content: "Placeholder asset - run generation for final media";
+  font-size: 0.875rem;
+  letter-spacing: 0;
+}

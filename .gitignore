@@ -1,0 +1,17 @@
+.next
+node_modules
+tsconfig.tsbuildinfo
+.playwright-mcp
+data/app-db.json
+data/vector-store.json
+data/runtime
+.env
+.env.*
+!.env.example
+!.env.pgvector.example
+reference-images/.env
+public/assets/generated/*.wav
+public/assets/generated/*.mp3
+student-task-check.png
+teacher-card-edit-*.png
+teacher-dashboard-check.png

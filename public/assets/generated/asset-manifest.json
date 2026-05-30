@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "project": "다음한걸음 demo",
+  "status": "generated",
+  "model": "gpt-image-2",
+  "generatedAt": "2026-05-29T10:56:07.684Z",
+  "notes": [
+    "Generated through the asset API/script using gpt-image-2. No fallback model was used."
+  ],
+  "assets": [
+    {
+      "id": "logo-mark",
+      "kind": "image",
+      "role": "다음한걸음 footprint logo mark",
+      "src": "/assets/generated/logo-mark.png",
+      "placeholder": false,
+      "label": "API generated"
+    },
+    {
+      "id": "student-mascot",
+      "kind": "image",
+      "role": "student encouragement mascot",
+      "src": "/assets/generated/student-mascot.png",
+      "placeholder": false,
+      "label": "API generated"
+    },
+    {
+      "id": "help-robot",
+      "kind": "image",
+      "role": "empty/help state robot",
+      "src": "/assets/generated/help-robot.png",
+      "placeholder": false,
+      "label": "API generated"
+    },
+    {
+      "id": "math-card-icon",
+      "kind": "image",
+      "role": "generic math execution-card icon",
+      "src": "/assets/generated/math-card-icon.png",
+      "placeholder": false,
+      "label": "API generated"
+    }
+  ]
+}

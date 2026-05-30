@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Placeholder asset for student lesson focus screen">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f6f2ea"/>
+      <stop offset="0.52" stop-color="#eaf3f0"/>
+      <stop offset="1" stop-color="#eef1f8"/>
+    </linearGradient>
+    <filter id="shadow" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#26323a" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect x="112" y="92" width="1056" height="536" rx="28" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="160" y="144" width="300" height="38" rx="19" fill="#21333a"/>
+  <rect x="160" y="214" width="640" height="20" rx="10" fill="#b7c5c0"/>
+  <rect x="160" y="252" width="520" height="20" rx="10" fill="#d1dad6"/>
+  <rect x="160" y="314" width="456" height="214" rx="18" fill="#f2f6f5" stroke="#d4dfdc" stroke-width="2"/>
+  <rect x="696" y="314" width="344" height="214" rx="18" fill="#fff7e6" stroke="#ead39d" stroke-width="2"/>
+  <circle cx="238" cy="421" r="54" fill="#5f8f86"/>
+  <path d="M216 424l20 20 42-54" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="324" y="374" width="228" height="18" rx="9" fill="#6c7d78"/>
+  <rect x="324" y="414" width="180" height="18" rx="9" fill="#a8b8b3"/>
+  <rect x="748" y="374" width="236" height="18" rx="9" fill="#7b6840"/>
+  <rect x="748" y="414" width="164" height="18" rx="9" fill="#b8a878"/>
+  <rect x="748" y="466" width="188" height="40" rx="20" fill="#d99b39"/>
+  <text x="640" y="672" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="20" fill="#66736f">PLACEHOLDER - run asset generation API/script for final artwork</text>
+</svg>

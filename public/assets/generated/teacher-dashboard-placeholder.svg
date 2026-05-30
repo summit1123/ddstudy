@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Placeholder asset for teacher dashboard screen">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#eef3f7"/>
+      <stop offset="0.45" stop-color="#f7f1e7"/>
+      <stop offset="1" stop-color="#edf5ec"/>
+    </linearGradient>
+    <filter id="shadow" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#24313a" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <rect x="92" y="72" width="1096" height="576" rx="26" fill="#ffffff" filter="url(#shadow)"/>
+  <rect x="132" y="112" width="232" height="496" rx="22" fill="#26343c"/>
+  <rect x="172" y="160" width="132" height="24" rx="12" fill="#edf4f1"/>
+  <rect x="172" y="232" width="152" height="16" rx="8" fill="#8aa29b"/>
+  <rect x="172" y="280" width="116" height="16" rx="8" fill="#8aa29b"/>
+  <rect x="172" y="328" width="140" height="16" rx="8" fill="#8aa29b"/>
+  <rect x="408" y="120" width="240" height="132" rx="18" fill="#eef6f3" stroke="#cadbd5" stroke-width="2"/>
+  <rect x="684" y="120" width="214" height="132" rx="18" fill="#fff5e2" stroke="#ead29a" stroke-width="2"/>
+  <rect x="934" y="120" width="214" height="132" rx="18" fill="#edf1fb" stroke="#cbd4ea" stroke-width="2"/>
+  <rect x="408" y="296" width="740" height="236" rx="18" fill="#f7f8f6" stroke="#d9dfdb" stroke-width="2"/>
+  <path d="M452 470c80-132 132-54 190-108 72-68 122 44 196-22 92-82 124 52 248-48" fill="none" stroke="#5f8f86" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="528" cy="392" r="28" fill="#d99b39"/>
+  <circle cx="712" cy="358" r="28" fill="#5f8f86"/>
+  <circle cx="956" cy="332" r="28" fill="#637aa8"/>
+  <text x="640" y="672" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="20" fill="#66736f">PLACEHOLDER - run asset generation API/script for final artwork</text>
+</svg>
