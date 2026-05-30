@@ -365,6 +365,7 @@ E2E_BASE_URL=http://localhost:3001 pnpm e2e
 E2E_BASE_URL=http://localhost:3001 pnpm e2e:rag
 pnpm pgvector:status
 pnpm corpus:audit
+pnpm corpus:audit
 ```
 
 Result: PASS.
@@ -396,6 +397,13 @@ Latest passing outputs:
       "official": 5885,
       "seed": 4
     }
+  },
+  "corpusAudit": {
+    "ok": true,
+    "rowCount": 5889,
+    "requiredProvenanceColumnsPresent": true,
+    "canClaimCompleteOfficialCorpus": false,
+    "canClaimSomeOfficialMetadataEmbedded": true
   }
 }
 ```
@@ -438,6 +446,72 @@ Latest passing outputs:
     "lessonId": "lesson_mps8uced_v560k9",
     "helpRequestCount": 3,
     "completionRate": 25
+  },
+  "e2eRag": {
+    "ok": true,
+    "cases": [
+      "직사각형의 둘레",
+      "인물의 마음 찾기",
+      "식물의 한살이",
+      "분수의 덧셈"
+    ],
+    "visualHintTypes": [
+      "number_line",
+      "rectangle_dimension",
+      "sequence_checklist"
+    ]
+  },
+  "pgvector": {
+    "ok": true,
+    "chunks": 5889,
+    "bySourceType": {
+      "official": 5885,
+      "seed": 4
+    }
+  }
+}
+```
+
+## Final Nonstop Demo Pass - 2026-05-30
+
+Purpose: remove misleading hardcoded demo students/school IDs from the visible product flow and make the first-run demo understandable from dashboard setup through student report.
+
+Changes verified:
+
+1. Clean runtime state now starts with a local teacher account, `학교 연결 전`, one selectable class, no registered students, and no generated task. Student screens show explicit empty/error states until a real registered student and published card exist.
+2. Demo students such as `학생 A/B/C` were removed from the seed dataset. The e2e creates `시연 대상 학생` through `/api/students`, so report/task data is tied to a real registered student row.
+3. Hardcoded internal IDs such as `teacher_001`, `classroom_4_2`, and `school_demo` were replaced by local demo IDs supplied through the shared classroom context.
+4. The dashboard now has a `논스톱 시연 흐름` panel for 학교 연결 -> 학생 등록 -> 수업 준비 -> 학생 배포 -> 리포트 확인, so a reviewer can tell what to do next.
+5. `/teacher/library` redirects to `/teacher/dashboard`; the MVP navigation is focused on the core flow rather than an unfinished 자료 라이브러리 surface.
+6. `PATCH /api/execution-cards/:id` normalizes step order during save, so add/delete/reorder operations persist cleanly after refresh.
+7. Browser screenshots captured for the final pass:
+   - `/tmp/daeum-review-screenshots-final-pass/01-dashboard.png`
+   - `/tmp/daeum-review-screenshots-final-pass/02-lesson-new.png`
+   - `/tmp/daeum-review-screenshots-final-pass/03-card-edit.png`
+   - `/tmp/daeum-review-screenshots-final-pass/04-student-task.png`
+   - `/tmp/daeum-review-screenshots-final-pass/05-report.png`
+
+Final commands:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+E2E_BASE_URL=http://localhost:3001 pnpm e2e
+E2E_BASE_URL=http://localhost:3001 pnpm e2e:rag
+pnpm pgvector:status
+```
+
+Final outputs:
+
+```json
+{
+  "e2e": {
+    "ok": true,
+    "cardId": "card_mpsa9mnp_ogbmi2",
+    "lessonId": "lesson_mpsa9ew6_gx2k6u",
+    "helpRequestCount": 3,
+    "completionRate": 33
   },
   "e2eRag": {
     "ok": true,

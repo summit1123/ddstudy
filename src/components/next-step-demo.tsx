@@ -267,6 +267,7 @@ type DemoSnapshot = {
   className: string;
   classGrade: string;
   classNo: string;
+  teacherId: string;
   teacherName: string;
   dateLabel: string;
   lessonTopic: string;
@@ -402,10 +403,11 @@ function buildInitialSnapshot(): DemoSnapshot {
     schoolAddress: school?.address ?? "",
     schoolSource: school?.source ?? "unconfigured",
     classroomId: classroom?.id ?? "",
-    className: classroom ? `${classroom.grade}학년 ${classroom.classNo}반` : "데모 학급",
+    className: classroom ? `${classroom.grade}학년 ${classroom.classNo}반` : "학급 설정 필요",
     classGrade: classroom?.grade ?? "4",
     classNo: classroom?.classNo ?? "1",
-    teacherName: teacher?.name ?? "데모 교사",
+    teacherId: teacher?.id ?? "teacher_local",
+    teacherName: teacher?.name ?? "교사 계정",
     dateLabel: firstLesson?.lessonDate.replaceAll("-", ".") ?? normalizeLessonDateForInput(""),
     lessonTopic: firstLesson?.topic ?? cards[0]?.title ?? "",
     activeCardId: cards[0]?.id ?? "",
@@ -528,6 +530,7 @@ async function loadTeacherSnapshot(preferredCardId?: string): Promise<DemoSnapsh
     className: classroom ? `${classroom.grade}학년 ${classroom.classNo}반` : "학급 설정 필요",
     classGrade: classroom?.grade ?? initialSnapshot.classGrade,
     classNo: classroom?.classNo ?? initialSnapshot.classNo,
+    teacherId: context.teacher?.id ?? initialSnapshot.teacherId,
     teacherName: context.teacher?.name ?? initialSnapshot.teacherName,
     lessonTopic: primaryLesson?.topic ?? initialSnapshot.lessonTopic,
     students,
@@ -638,7 +641,7 @@ function TeacherHeader({ snapshot, onOpenSetup }: { snapshot: DemoSnapshot; onOp
         <span>{snapshot.className}</span>
         <ChevronDown size={16} aria-hidden="true" />
       </button>
-      <button className="dhg-date" type="button" aria-label="날짜 선택">
+      <button className="dhg-date" type="button" aria-label="날짜 확인 및 설정" onClick={onOpenSetup}>
         <ChevronLeft size={18} aria-hidden="true" />
         <span>
           <CalendarDays size={18} aria-hidden="true" />
@@ -650,10 +653,10 @@ function TeacherHeader({ snapshot, onOpenSetup }: { snapshot: DemoSnapshot; onOp
         <Search size={18} aria-hidden="true" />
         <input placeholder="학생 또는 과제 검색" />
       </label>
-      <button className="dhg-icon-button" type="button" aria-label="알림">
+      <button className="dhg-icon-button" type="button" aria-label="설정 알림" onClick={onOpenSetup}>
         <Bell size={21} aria-hidden="true" />
       </button>
-      <button className="dhg-profile" type="button">
+      <button className="dhg-profile" type="button" onClick={onOpenSetup}>
         <span>👩🏻</span>
         <span>{snapshot.teacherName}</span>
         <ChevronDown size={16} aria-hidden="true" />
@@ -694,8 +697,8 @@ function TeacherSidebar({ activeView, setActiveView }: { activeView: TeacherView
       <div className="dhg-chat-card">
         <Image src="/assets/generated/help-robot.png" alt="" width={76} height={76} />
         <p>도움이 필요하신가요?</p>
-        <span>다음한걸음 AI 챗봇이 도와드릴게요.</span>
-        <button type="button">채팅하기</button>
+        <span>수업 준비에서 성취기준 검색과 실행카드 생성을 바로 시작할 수 있어요.</span>
+        <button type="button" onClick={() => setActiveView("prep")}>수업 준비 열기</button>
       </div>
     </aside>
   );
@@ -911,6 +914,17 @@ function TeacherDashboard({
   const activeCard = snapshot.cards.find((card) => card.id === snapshot.activeCardId) ?? snapshot.cards[0];
   const reportCount = activeCard ? snapshot.students.filter((student) => student.progress > 0 || student.status === "blocked").length : 0;
   const blockedStudent = snapshot.students.find((student) => student.status === "blocked") ?? snapshot.students[0];
+  const schoolConnected = Boolean(snapshot.schoolCode && snapshot.officeCode && snapshot.schoolSource === "NEIS");
+  const hasStudents = snapshot.students.length > 0;
+  const hasPublishedCard = snapshot.cards.some((card) => card.status === "deployed");
+  const hasReportLogs = reportCount > 0;
+  const flowSteps = [
+    { label: "학교 연결", done: schoolConnected, target: "dashboard" as TeacherView },
+    { label: "학생 등록", done: hasStudents, target: "dashboard" as TeacherView },
+    { label: "수업 준비", done: snapshot.cards.length > 0, target: "prep" as TeacherView },
+    { label: "학생 배포", done: hasPublishedCard, target: "cards" as TeacherView },
+    { label: "리포트 확인", done: hasReportLogs, target: "reports" as TeacherView },
+  ];
   const timetableRows = snapshot.cards.slice(0, 3).map((card, index) => [
     `${index + 1}교시`,
     card.subject,
@@ -926,6 +940,23 @@ function TeacherDashboard({
       </div>
 
       <TeacherSetupPanel snapshot={snapshot} refreshSnapshot={refreshSnapshot} />
+
+      <section className="dhg-flow-panel" aria-label="시연 흐름">
+        <div>
+          <strong>논스톱 시연 흐름</strong>
+          <p>학교와 학생을 먼저 설정한 뒤, 수업 준비에서 생성한 실행카드를 학생 화면과 리포트까지 이어서 확인합니다.</p>
+        </div>
+        <ol>
+          {flowSteps.map((step, index) => (
+            <li key={step.label} className={step.done ? "is-done" : ""}>
+              <button type="button" onClick={() => setActiveView(step.target)}>
+                <span>{step.done ? "✓" : index + 1}</span>
+                {step.label}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <div className="dhg-stat-grid">
         {[
@@ -998,7 +1029,7 @@ function TeacherDashboard({
             </button>
           </div>
           <div className="dhg-progress-table">
-            {snapshot.students.map((student) => (
+            {snapshot.students.length ? snapshot.students.map((student) => (
               <button key={student.id} type="button">
                 <span>{student.avatar}</span>
                 <strong>{student.name}</strong>
@@ -1006,7 +1037,7 @@ function TeacherDashboard({
                 <meter min="0" max="100" value={student.progress} />
                 <em className={`tone-${student.status}`}>{statusLabel(student.status)}</em>
               </button>
-            ))}
+            )) : <p className="dhg-muted-empty">등록된 학생이 없습니다. 위 설정 영역에서 학생을 먼저 등록해 주세요.</p>}
           </div>
         </div>
 
@@ -1477,8 +1508,12 @@ function TeacherCards({
         <aside className="dhg-panel dhg-phone-preview-panel">
           <div className="dhg-panel-head">
             <h2>학생 화면 미리보기</h2>
-            <button type="button" onClick={() => setSnapshot((current) => ({ ...current }))}>
-              새로고침
+            <button
+              type="button"
+              disabled={!card?.id}
+              onClick={() => card?.id && window.open(studentRoute("task", card.id), "_blank", "noopener,noreferrer")}
+            >
+              학생 화면 열기
             </button>
           </div>
           <StudentPhonePreview card={card} step={steps[1] ?? steps[0]} />
@@ -1510,6 +1545,10 @@ function TeacherReports({ snapshot, setActiveView, studentId }: { snapshot: Demo
   useEffect(() => {
     if (studentId) setSelectedStudentId(studentId);
   }, [studentId]);
+
+  useEffect(() => {
+    if (!selectedStudentId && snapshot.students[0]?.id) setSelectedStudentId(snapshot.students[0].id);
+  }, [selectedStudentId, snapshot.students]);
 
   useEffect(() => {
     if (!selected?.id || !activeCard?.id) return;
@@ -1544,6 +1583,24 @@ function TeacherReports({ snapshot, setActiveView, studentId }: { snapshot: Demo
     ["!", "막힌 단계 수", `${summary?.stuckStepCount ?? 0}개`, "도움 요청 또는 오답 기준"],
   ];
   const recommendations = reportData?.report.aiRecommendationsJson ?? [];
+
+  if (!selected) {
+    return (
+      <section className="dhg-teacher-page">
+        <div className="dhg-page-title">
+          <h1>학생 리포트</h1>
+          <p>학생을 등록하고 과제를 배포하면 수행 로그 기반 리포트가 생성됩니다.</p>
+        </div>
+        <div className="dhg-empty">
+          <strong>등록된 학생이 없습니다.</strong>
+          <p>대시보드의 교실 시작 설정에서 학생을 먼저 등록해 주세요.</p>
+          <button className="dhg-primary" type="button" onClick={() => setActiveView("dashboard")}>
+            학생 등록하러 가기
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   function downloadReport() {
     const content = [
@@ -1734,7 +1791,7 @@ function StudentPhonePreview({ card, step }: { card?: ExecutionCard; step?: Less
           <strong>힌트</strong>
           <p>{step?.helpSentence ?? "학생에게 보여줄 힌트가 여기에 표시됩니다."}</p>
         </aside>
-        <button type="button">완료했어요</button>
+        <button type="button" disabled>완료했어요</button>
       </section>
     </div>
   );
@@ -1792,7 +1849,7 @@ export function TeacherDemoApp({
       const lessonResult = await requestJson<{ lesson: ApiLesson }>("/api/lessons", {
         method: "POST",
         body: JSON.stringify({
-          teacherId: "teacher_001",
+          teacherId: snapshot.teacherId,
           classroomId: payload.classroomId,
           schoolId: payload.schoolId,
           subject: payload.subject,
@@ -2487,10 +2544,10 @@ export function StudentDemoApp({ initialView = "task", initialCardId }: { initia
         }
         setTask(firstTask);
         const stepTotal = Math.max(1, firstTask.steps.length);
-        const completed = firstTask.summary?.completionRate ? Math.max(1, Math.round((firstTask.summary.completionRate / 100) * stepTotal)) : 1;
-        setCompletedSteps(completed);
-        setHelpCount(firstTask.summary?.helpRequestCount ?? 0);
-        setCurrentStepIndex(Math.min(Math.max(0, completed - 1), Math.max(0, firstTask.steps.length - 1)));
+      const completed = firstTask.summary ? Math.round((firstTask.summary.completionRate / 100) * stepTotal) : 0;
+      setCompletedSteps(completed);
+      setHelpCount(firstTask.summary?.helpRequestCount ?? 0);
+      setCurrentStepIndex(Math.min(Math.max(0, completed), Math.max(0, firstTask.steps.length - 1)));
         setRequestState("idle");
         setError("");
       })
@@ -2554,7 +2611,7 @@ export function StudentDemoApp({ initialView = "task", initialCardId }: { initia
   function updateSummary(summary?: ApiTaskSummary) {
     if (!summary) return;
     setTask((current) => (current ? { ...current, summary } : current));
-    setCompletedSteps(Math.max(1, Math.round((summary.completionRate / 100) * Math.max(1, loadedTask.steps.length || 4))));
+    setCompletedSteps(Math.round((summary.completionRate / 100) * Math.max(1, loadedTask.steps.length || 4)));
     setHelpCount(summary.helpRequestCount);
   }
 

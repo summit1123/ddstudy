@@ -17,6 +17,8 @@ Objective: 교사 수업 준비 입력 -> 성취기준 검색/RAG -> AI 실행�
 | Review/report reflect logs | `buildTaskSummary` and `buildStudentReport` compute completion, help count, stuck steps, per-step rows, recommendations, and parent memo from logs. E2E confirms `helpRequestCount: 3` and per-step rows. | PASS |
 | UI no longer embeds forbidden data strings in components | `rg` over `src/components`, `src/app`, and `src/lib` excluding seed/RAG files found no forbidden fixed UI strings. | PASS |
 | Validation gates pass | `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm e2e`, `pnpm e2e:rag`, `pnpm pgvector:status`, and `pnpm corpus:audit` pass. | PASS |
+| First-run demo does not pretend fake students already exist | Clean runtime state starts with no registered students; dashboard registration creates students through `/api/students`, and e2e uses that same path before task/report validation. | PASS |
+| Unfinished 자료 라이브러리 is removed from the MVP path | `/teacher/library` redirects to `/teacher/dashboard`, keeping the demo focused on the validated 수업 준비 -> 실행카드 -> 학생 수행 -> 리포트 flow. | PASS |
 
 ## Residual External Data Notes
 

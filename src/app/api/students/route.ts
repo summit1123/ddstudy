@@ -33,6 +33,13 @@ export async function POST(request: Request) {
       throw new Error("학생을 등록할 학급이 없습니다. 먼저 학교/학급을 설정해 주세요.");
     }
 
+    const existing = db.students.find(
+      (student) => student.classroomId === classroom.id && student.nickname.trim() === nickname
+    );
+    if (existing) {
+      return existing;
+    }
+
     const studentId = id("student");
     const now = new Date().toISOString();
     const user: User = {

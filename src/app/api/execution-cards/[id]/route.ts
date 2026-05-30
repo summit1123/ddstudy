@@ -86,7 +86,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           return {
             id: stepId,
             cardId: id,
-            order: step.order || stepIndex + 1,
+            order: stepIndex + 1,
             stepText: step.stepText,
             visualHintJson: {
               type: step.visualHint.type,

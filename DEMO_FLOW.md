@@ -4,9 +4,9 @@
 2. In `시연 시작 설정`, connect the school/class.
    - Current app supports NEIS school search from this panel.
    - If a school is not connected yet, the UI explicitly shows `학교 연결 전`; it does not pretend that a fake school came from NEIS.
-3. Register or confirm students in `학생 등록`.
-   - Seed/demo students are visible as registered demo users.
-   - Additional students can be added through `POST /api/students` or the dashboard form.
+3. Register students in `학생 등록`.
+   - The clean demo state does not preload fake students.
+   - Students can be added through `POST /api/students` or the dashboard form, and reports/student screens use the registered student IDs.
 4. Confirm date, active tasks, support-needed students, and recent cards.
 5. Open `수업 준비` or `/teacher/lessons/new`.
 6. Use topic `직사각형의 둘레 구하기` or another subject/topic such as `인물의 마음 찾기`.
@@ -25,13 +25,14 @@
 15. Student clicks `완료했어요`.
 16. Confirm student support UI: easy-language keyword card, visual hint, emphasized help sentence, repeat-check quiz, and life mission when selected.
 17. Open review, or call `POST /api/student/tasks/:cardId/review`.
-18. Open `/teacher/reports/:studentId`, for example `/teacher/reports/student_a`.
+18. Open `/teacher/reports/:studentId` with the registered student ID from the dashboard or API context.
 19. Confirm completion, help counts, stuck-step tags, recommendations, and parent memo.
 
 ## Known Demo Notes
 
-- Seed users/classes/students are demo registration data by design; seed tasks are not preloaded.
-- The current clean state starts from no generated task. A student screen with no published task shows an explicit empty state.
+- The current clean state starts from a local teacher, a pending school connection, one default class selector, no registered students, and no generated task.
+- A student screen with no published task or no registered student shows an explicit empty state instead of a hardcoded old problem.
+- `/teacher/library` is intentionally redirected to the dashboard for the MVP so the demo stays focused on 수업 준비 -> 실행카드 -> 학생 수행 -> 리포트.
 - NEIS is used for school context, schedule, and timetable, not textbook page lookup.
 - Current pgvector corpus uses STAS official 2015 revised achievement-standard metadata plus explicit `sourceType=seed` demo rows.
 - NCIC/KICE full-text curriculum files, achievement-level files, remediation materials, and assessment-tool originals are not claimed as collected; they are documented in `DATA_REQUIRED.md` until source files and license terms are confirmed.

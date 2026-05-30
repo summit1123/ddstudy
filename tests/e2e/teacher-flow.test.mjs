@@ -60,13 +60,28 @@ const topic = "인물의 마음 찾기";
 const selectedCode = standard.standardCode ?? standard.citations?.[0]?.standardId ?? standard.id;
 const selectedSourceUrl = standard.sourceUrl ?? standard.url;
 const supportOptions = ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"];
+const classroomContext = await request("/api/classroom/context");
+assert(classroomContext.teacher?.id, "Teacher context should exist.");
+assert(classroomContext.classroom?.id, "Classroom context should exist.");
+assert(classroomContext.school?.id, "School context should exist.");
+const studentResult = await request("/api/students", {
+  method: "POST",
+  body: JSON.stringify({
+    nickname: "시연 대상 학생",
+    classroomId: classroomContext.classroom.id,
+    profile: "긴 문장 이해 어려움",
+    supportOptions: ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"],
+  }),
+});
+assert(studentResult.student?.id, "Student registration should create or return a student.");
+const studentQuery = `?studentId=${encodeURIComponent(studentResult.student.id)}`;
 
 const lessonResult = await request("/api/lessons", {
   method: "POST",
   body: JSON.stringify({
-    teacherId: "teacher_001",
-    classroomId: "classroom_4_2",
-    schoolId: "school_demo",
+    teacherId: classroomContext.teacher.id,
+    classroomId: classroomContext.classroom.id,
+    schoolId: classroomContext.school.id,
     subject: "국어",
     gradeBand: "초4",
     topic,
@@ -181,22 +196,22 @@ assert(reloaded.steps[0].stepText === editedStepText, "Edited step text should p
 assert(reloaded.steps.length === editedSteps.length, "Added/deleted/reordered steps should persist.");
 
 await request(`/api/execution-cards/${generated.card.id}/publish`, { method: "POST" });
-const task = await request(`/api/student/tasks/${generated.card.id}`);
+const task = await request(`/api/student/tasks/${generated.card.id}${studentQuery}`);
 assert(task.card.id === generated.card.id, "Student task should load by URL cardId.");
 const firstStep = task.steps[0];
 
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/start`, { method: "POST" });
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/confused`, { method: "POST" });
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/simplify`, { method: "POST" });
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/help-sentence`, { method: "POST" });
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/quiz`, {
+await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/start${studentQuery}`, { method: "POST" });
+await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/confused${studentQuery}`, { method: "POST" });
+await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/simplify${studentQuery}`, { method: "POST" });
+await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/help-sentence${studentQuery}`, { method: "POST" });
+await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/quiz${studentQuery}`, {
   method: "POST",
   body: JSON.stringify({ answer: firstStep.microQuizJson.answer }),
 });
-const completeResult = await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/complete`, { method: "POST" });
+const completeResult = await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/complete${studentQuery}`, { method: "POST" });
 assert(completeResult.summary.helpRequestCount >= 3, "Student help events should be counted in summary.");
 
-const report = await request(`/api/reports/students/${task.studentId}?cardId=${generated.card.id}`);
+const report = await request(`/api/reports/students/${studentResult.student.id}?cardId=${generated.card.id}`);
 assert(report.summary.helpRequestCount >= 3, "Teacher report should reflect student help logs.");
 assert(report.perStep?.length === reloaded.steps.length, "Report should include per-step flow for the edited card.");
 

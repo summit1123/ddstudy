@@ -67,7 +67,7 @@ export async function PATCH(request: Request) {
   const context = await updateDb((db) => {
     const teacher = db.users.find((user) => user.role === "teacher") ?? db.users[0];
     let school: School = db.schools[0] ?? {
-      id: "school_demo",
+      id: "school_pending",
       schoolName: "학교 연결 전",
       schoolCode: "",
       officeCode: "",
@@ -99,7 +99,7 @@ export async function PATCH(request: Request) {
       schoolId: school.id,
       grade: "4",
       classNo: "1",
-      teacherId: teacher?.id ?? "teacher_001",
+      teacherId: teacher?.id ?? "teacher_local",
     };
 
     if (!db.classrooms.some((item) => item.id === classroom.id)) {

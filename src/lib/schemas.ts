@@ -174,9 +174,9 @@ export const ExecutionCardPayloadSchema = z.object({
 
 export const GenerateLessonRequestSchema = z.object({
   title: z.string().optional(),
-  teacherId: z.string().min(1).default("teacher_001"),
-  classroomId: z.string().min(1).default("classroom_4_2"),
-  schoolId: z.string().min(1).default("school_demo"),
+  teacherId: z.string().min(1).default("teacher_local"),
+  classroomId: z.string().min(1).default("classroom_default"),
+  schoolId: z.string().min(1).default("school_pending"),
   subject: z.string().min(1),
   gradeBand: z.string().min(1),
   topic: z.string().min(1),

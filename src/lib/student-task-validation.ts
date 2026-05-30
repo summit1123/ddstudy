@@ -6,7 +6,7 @@ export function resolveDemoStudentId(db: AppDb, request?: Request) {
   const studentId = requested && db.students.some((student) => student.id === requested)
     ? requested
     : db.students[0]?.id;
-  if (!studentId) throw new Error("데모 학생 데이터가 없습니다.");
+  if (!studentId) throw new Error("등록된 학생이 없습니다. 선생님 화면에서 학생을 먼저 등록해 주세요.");
   return studentId;
 }
 
