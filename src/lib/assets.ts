@@ -78,7 +78,7 @@ export async function readAssetManifest(): Promise<AssetManifest> {
 export async function writeGeneratedAssetManifest(assetIds: string[]): Promise<AssetManifest> {
   const manifest: AssetManifest = {
     schemaVersion: 1,
-    project: "다음한걸음 demo",
+    project: "다음한걸음 MVP",
     status: "generated",
     model: REQUIRED_IMAGE_MODEL,
     generatedAt: new Date().toISOString(),

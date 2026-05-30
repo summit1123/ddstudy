@@ -169,7 +169,7 @@ export async function POST(request: Request) {
       schema: executionCardJsonSchema,
       zodSchema: GeneratedExecutionCardSchema,
       system:
-        "You generate Korean classroom execution cards for the 다음한걸음 demo. Follow the JSON schema exactly, cite only supplied resources, and do not invent standard IDs.",
+        "You generate Korean classroom execution cards for the 다음한걸음 service. Follow the JSON schema exactly, cite only supplied resources, and do not invent standard IDs.",
       user: [
         `Subject: ${subject}`,
         `Grade band: ${gradeBand}`,

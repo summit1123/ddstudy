@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       schema: reportJsonSchema,
       zodSchema: GeneratedReportSchema,
       system:
-        "You generate Korean learning reports for the 다음한걸음 demo. Be specific, evidence-based, and cite only supplied resources when relevant.",
+        "You generate Korean learning reports for the 다음한걸음 service. Be specific, evidence-based, and cite only supplied resources when relevant.",
       user: [
         `Audience: ${input.audience}`,
         input.studentName ? `Student: ${input.studentName}` : "",

@@ -3169,7 +3169,7 @@ meter {
   font-weight: 900;
 }
 
-.dhg-rectangle-demo {
+.dhg-rectangle-visual {
   position: relative;
   min-height: 136px;
   margin-top: 10px;
@@ -3178,7 +3178,7 @@ meter {
   overflow: visible;
 }
 
-.dhg-rectangle-demo::before {
+.dhg-rectangle-visual::before {
   content: "";
   width: 210px;
   height: 86px;
@@ -3186,7 +3186,7 @@ meter {
   background: white;
 }
 
-.dhg-rectangle-demo b {
+.dhg-rectangle-visual b {
   position: absolute;
   z-index: 1;
   padding: 2px 6px;
@@ -3198,13 +3198,13 @@ meter {
   line-height: 1.1;
 }
 
-.dhg-rectangle-demo .width {
+.dhg-rectangle-visual .width {
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
 }
 
-.dhg-rectangle-demo .height {
+.dhg-rectangle-visual .height {
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
@@ -3304,26 +3304,26 @@ meter {
   overflow-wrap: anywhere;
 }
 
-.dhg-phone-frame.compact .dhg-rectangle-demo {
+.dhg-phone-frame.compact .dhg-rectangle-visual {
   min-height: 154px;
   margin-top: 0;
 }
 
-.dhg-phone-frame.compact .dhg-rectangle-demo::before {
+.dhg-phone-frame.compact .dhg-rectangle-visual::before {
   width: 206px;
   height: 92px;
   border-width: 3px;
 }
 
-.dhg-phone-frame.compact .dhg-rectangle-demo b {
+.dhg-phone-frame.compact .dhg-rectangle-visual b {
   font-size: 17px;
 }
 
-.dhg-phone-frame.compact .dhg-rectangle-demo .width {
+.dhg-phone-frame.compact .dhg-rectangle-visual .width {
   top: 8px;
 }
 
-.dhg-phone-frame.compact .dhg-rectangle-demo .height {
+.dhg-phone-frame.compact .dhg-rectangle-visual .height {
   right: 10px;
 }
 

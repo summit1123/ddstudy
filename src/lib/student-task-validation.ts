@@ -1,7 +1,7 @@
 import { readDb } from "./db";
 import type { AppDb } from "./types";
 
-export function resolveDemoStudentId(db: AppDb, request?: Request) {
+export function resolveStudentId(db: AppDb, request?: Request) {
   const requested = request ? new URL(request.url).searchParams.get("studentId") : null;
   const studentId = requested && db.students.some((student) => student.id === requested)
     ? requested

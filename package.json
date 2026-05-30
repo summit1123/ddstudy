@@ -1,5 +1,5 @@
 {
-  "name": "daeum-hangeoreum-demo",
+  "name": "daeum-hangeoreum",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "e2e": "node tests/e2e/teacher-flow.test.mjs",
     "e2e:rag": "node tests/e2e/rag-generation-diversity.test.mjs",
-    "seed": "tsx scripts/seed-demo.ts",
+    "seed": "tsx scripts/seed-data.ts",
     "collect:stas:standards": "tsx scripts/collect-stas-standards.ts",
     "collect:stas:standards:all": "tsx scripts/collect-stas-standards.ts --school=all --curriculum=2015 --size=200 --output=data/processed/stas-standards-all.json",
     "collect:public:sources": "tsx scripts/collect-public-education-metadata.ts",

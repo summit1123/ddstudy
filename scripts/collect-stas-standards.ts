@@ -58,7 +58,7 @@ async function fetchPage({
   const response = await fetch(url, {
     headers: {
       accept: "application/json",
-      "user-agent": "daeum-hangeoreum-demo-corpus-collector/0.1",
+      "user-agent": "daeum-hangeoreum-corpus-collector/0.1",
     },
   });
 

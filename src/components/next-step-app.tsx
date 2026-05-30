@@ -314,9 +314,7 @@ function cleanSourceName(sourceName?: string | null) {
   const label = sourceName
     .replaceAll("성취기준 공개 REST", "성취기준")
     .replace(/metadata/gi, "자료")
-    .replace(/\s*\+\s*demo lesson scenario/gi, "")
-    .replace(/다음한걸음\s*데모\s*내장\s*기준/g, "교육과정 자료")
-    .replace(/데모|seed/gi, "")
+    .replace(/seed/gi, "")
     .replace(/\s+/g, " ")
     .trim();
   if (!label || /확인 필요|약관|재이용|재배포/i.test(label)) return "교육과정 자료";
@@ -326,7 +324,7 @@ function cleanSourceName(sourceName?: string | null) {
 function cleanLicenseLabel(license?: string | null) {
   if (!license) return "";
   const label = license.trim();
-  if (/확인 필요|약관|재이용|재배포|metadata|seed|데모|corpus|원문|저작권 정책/i.test(label)) return "";
+  if (/확인 필요|약관|재이용|재배포|metadata|seed|corpus|원문|저작권 정책/i.test(label)) return "";
   if (label.length > 30) return "";
   return label;
 }
@@ -1578,7 +1576,7 @@ function ReportsView({
   );
 }
 
-export function TeacherDemoApp({
+export function TeacherApp({
   initialView = "dashboard",
   initialCardId,
   initialStudentId,
@@ -2058,7 +2056,7 @@ function StudentReviewScreen({ task, reload }: { task: ApiStudentTask; reload: (
   );
 }
 
-export function StudentDemoApp({
+export function StudentApp({
   initialView = "task",
   initialCardId,
 }: {

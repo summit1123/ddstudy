@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { addStudentLog } from "@/lib/db";
 import { buildTaskSummary, defaultLogPayload } from "@/lib/reporting";
-import { resolveDemoStudentId, validatePublishedStudentStep } from "@/lib/student-task-validation";
+import { resolveStudentId, validatePublishedStudentStep } from "@/lib/student-task-validation";
 
 export async function POST(
   request: Request,
@@ -12,7 +12,7 @@ export async function POST(
   if (!validation.ok) {
     return NextResponse.json({ error: validation.error }, { status: 404 });
   }
-  const studentId = resolveDemoStudentId(validation.db, request);
+  const studentId = resolveStudentId(validation.db, request);
 
   const easyText = `${validation.step.stepText} 먼저 표시하고, 천천히 한 번만 확인해요.`;
   const log = await addStudentLog({

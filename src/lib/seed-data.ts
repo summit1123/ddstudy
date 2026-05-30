@@ -19,7 +19,7 @@ export const emptyDb: AppDb = {
   reports: []
 };
 
-export const demoDb: AppDb = {
+export const seedDb: AppDb = {
   ...emptyDb,
   users: [
     {

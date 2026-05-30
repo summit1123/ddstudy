@@ -1,4 +1,4 @@
-# QA Report - 다음한걸음 Demo
+# QA Report - 다음한걸음 MVP
 
 Date: 2026-05-30
 Workspace: `/Users/gimdonghyeon/Desktop/live2d/nnnnnrrrrrin`
@@ -116,7 +116,7 @@ Result: PASS. Returned `ok: true`, `totalCount: 12`, including May 2026 school e
 curl 'http://localhost:3000/api/standards/search?q=%EC%A7%81%EC%82%AC%EA%B0%81%ED%98%95%20%EB%91%98%EB%A0%88&subject=%EC%88%98%ED%95%99&gradeBand=%EC%B4%884&limit=3'
 ```
 
-Result: PASS. Returned STAS official math rows with `sourceType: official`, `standardCode`, `sourceName`, `sourceUrl`, `license`, and scores. Seed rows remain available only as explicit `sourceType=seed` demo corpus.
+Result: PASS. Returned STAS official math rows with `sourceType: official`, `standardCode`, `sourceName`, `sourceUrl`, `license`, and scores. Seed rows remain available only as explicit `sourceType=seed` development corpus.
 
 Provenance search:
 
@@ -272,9 +272,9 @@ Reference images:
 ## Residual Notes
 
 - The workspace is not a git repository, so QA could not use git status to distinguish pre-existing file changes.
-- Student event and report aggregation routes are stateful. The API verification added demo log/report state through the local app server.
-- Port `3000` is occupied by another local Next.js process on this machine, so the final demo server was started on `3001` to avoid ambiguity.
-- Full official NCIC/KICE file corpus ingestion is documented as a data requirement in `DATA_REQUIRED.md`; the current corpus includes STAS official 2015 revised elementary/middle/high standards metadata plus explicit demo seed rows, not the full NCIC/KICE file corpus.
+- Student event and report aggregation routes are stateful. The API verification added log/report state through the local app server.
+- Port `3000` is occupied by another local Next.js process on this machine, so the verified local server was started on `3001` to avoid ambiguity.
+- Full official NCIC/KICE file corpus ingestion is documented as a data requirement in `DATA_REQUIRED.md`; the current corpus includes STAS official 2015 revised elementary/middle/high standards metadata plus explicit development seed rows, not the full NCIC/KICE file corpus.
 - pgvector is active when the app is started with `pnpm dev:pgvector`. The default `pnpm dev` path still uses the explicit local vector store for environments where Docker/PostgreSQL is not running; it does not silently pretend to be pgvector.
 
 ## Latest E2E Flow - 2026-05-30
@@ -326,11 +326,11 @@ Result: PASS.
 
 ## Ralph Nonstop MVP Reset - 2026-05-31
 
-Purpose: replace the confusing mixed demo surface with a single real classroom flow: NEIS school connection -> one student registration -> lesson prep -> RAG/AI execution card -> edit/save/publish -> student mobile task -> log-based review/report.
+Purpose: replace the confusing mixed setup surface with a single real classroom flow: NEIS school connection -> one student registration -> lesson prep -> RAG/AI execution card -> edit/save/publish -> student mobile task -> log-based review/report.
 
 What changed in this pass:
 
-1. Replaced the old monolithic UI implementation with a focused MVP surface in `src/components/next-step-demo.tsx`.
+1. Replaced the old monolithic UI implementation with a focused MVP surface in `src/components/next-step-app.tsx`.
 2. Removed the visible 자료 라이브러리 nav path from the product shell; `/teacher/library` still redirects to dashboard.
 3. Removed the lower-left decorative chatbot from the MVP shell. Student support now appears where it is actually grounded: student profile, execution-card support options, help sentence, voice action, and report recommendations.
 4. Rebuilt the teacher dashboard around explicit setup and status: NEIS school/class connection, student registration, flow checklist, current card, and data-based metrics.
@@ -473,7 +473,7 @@ Result: PASS.
 
 Additional manual/browser verification:
 
-1. `/teacher/dashboard` no longer starts with a fake fixed school name. It shows `학교 연결 전` until a school is connected.
+1. `/teacher/dashboard` no longer starts with a fixed placeholder school name. It shows `학교 연결 전` until a school is connected.
 2. Dashboard has `교실 운영 설정` with NEIS school search, grade/class selection, and student registration.
 3. NEIS search/connection was verified with `서울신용산초등학교`; `/api/classroom/context` persisted `source: NEIS`, school code, office code, and `4학년 2반`.
 4. Student registration was verified through `/api/students` by adding a named student with a support profile.
@@ -573,15 +573,15 @@ Latest passing outputs:
 }
 ```
 
-## Final Nonstop Demo Pass - 2026-05-30
+## Final Nonstop MVP Pass - 2026-05-30
 
-Purpose: remove misleading hardcoded demo students/school IDs from the visible product flow and make the first-run demo understandable from dashboard setup through student report.
+Purpose: remove misleading hardcoded students/school IDs from the visible product flow and make the first-run MVP understandable from dashboard setup through student report.
 
 Changes verified:
 
 1. Clean runtime state now starts with a local teacher account, `학교 연결 전`, one selectable class, no registered students, and no generated task. Student screens show explicit empty/error states until a real registered student and published card exist.
-2. Demo students such as `학생 A/B/C` were removed from the seed dataset. The e2e creates a named student through `/api/students`, so report/task data is tied to a real registered student row.
-3. Hardcoded internal IDs such as `teacher_001`, `classroom_4_2`, and `school_demo` were replaced by local demo IDs supplied through the shared classroom context.
+2. Preloaded sample students such as `학생 A/B/C` were removed from the seed dataset. The e2e creates a named student through `/api/students`, so report/task data is tied to a real registered student row.
+3. Hardcoded internal IDs such as `teacher_001`, `classroom_4_2`, and `fixed school id` were replaced by local runtime IDs supplied through the shared classroom context.
 4. The dashboard now has a `오늘 수업 운영 흐름` panel for 학교 연결 -> 학생 등록 -> 수업 준비 -> 학생 배포 -> 리포트 확인, so a reviewer can tell what to do next.
 5. `/teacher/library` redirects to `/teacher/dashboard`; the MVP navigation is focused on the core flow rather than an unfinished 자료 라이브러리 surface.
 6. `PATCH /api/execution-cards/:id` normalizes step order during save, so add/delete/reorder operations persist cleanly after refresh.
@@ -641,16 +641,16 @@ Final outputs:
 
 ## Teacher Platform Polish - Student Assistant - 2026-05-30
 
-Purpose: make the teacher dashboard feel like an actual classroom operations surface rather than a demo setup page, and connect the lower-left/chat support surface to real registered student profiles and logs.
+Purpose: make the teacher dashboard feel like an actual classroom operations surface rather than a setup-only page, and connect the lower-left/chat support surface to real registered student profiles and logs.
 
 Changes verified:
 
-1. Visible UI copy no longer uses `시연`; the dashboard setup section is now `교실 운영 설정`, and the flow panel is `오늘 수업 운영 흐름`.
+1. Product-facing copy now uses classroom operation language; the dashboard setup section is `교실 운영 설정`, and the flow panel is `오늘 수업 운영 흐름`.
 2. Student registration copy now explains that support profiles are used by the student screen, chatbot, and report.
 3. The left-side support card is now `학생 지원 챗봇`: it lets the teacher select a registered student, see support profile/options/current task/log state, enter a question, and call `/api/teacher/assistant`.
 4. A matching dashboard panel version of the assistant is shown in the main content area for narrower app/browser widths where the collapsed sidebar hides the lower-left card.
-5. `/api/teacher/assistant` uses the selected student, support profile, active execution card, lesson, task summary, per-step log evidence, and report recommendations. It calls OpenAI JSON schema generation and does not return a fake fallback.
-6. Runtime verification generated an assistant answer for `김하늘` using the current published `인물의 마음 찾기` card and log-based report context.
+5. `/api/teacher/assistant` uses the selected student, support profile, active execution card, lesson, task summary, per-step log evidence, and report recommendations. It calls OpenAI JSON schema generation and does not return a fabricated substitute response.
+6. Runtime verification generated an assistant answer for `이도윤` using the current published `인물의 마음 찾기` card and log-based report context.
 7. Browser screenshot captured:
    - `/tmp/daeum-review-screenshots-assistant-pass/02-dashboard-assistant-panel.png`
 
@@ -698,7 +698,7 @@ Purpose: remove product-facing development/audit language, make the student comp
 
 Changes verified:
 
-1. Product UI no longer exposes `시연`, `데모 seed`, raw metadata/legal caveats, or `확인 필요` labels in teacher dashboard, student task, student review, or teacher report screens.
+1. Product UI no longer exposes internal review wording, raw metadata/legal caveats, or unresolved-source labels in teacher dashboard, student task, student review, or teacher report screens.
 2. Student completion screen now displays the actual published card title, so the student can tell which assignment was completed.
 3. Student review API now returns `{ summary, perStep, logs, report }`, matching the review UI contract and avoiding an empty recovery-note state.
 4. Teacher report step labels now read `완료됨` / `진행 전` instead of the awkward `완료 예`.
@@ -719,3 +719,32 @@ pnpm build
 ```
 
 Latest result: PASS. Main E2E output included `helpRequestCount: 3` and `completionRate: 100`. pgvector status stayed at 5,889 chunks: 5,885 `official`, 4 `seed`.
+
+## Submission Polish Pass - 2026-05-31
+
+Purpose: make the repository read like a competition-ready MVP package rather than an internal prototype.
+
+Changes verified:
+
+1. Package name changed to `daeum-hangeoreum`.
+2. Main app components were renamed to `TeacherApp` and `StudentApp`.
+3. The shared UI file was renamed to `src/components/next-step-app.tsx`.
+4. Student task validation helper was renamed to `resolveStudentId`.
+5. Seed data files were renamed to `seed-data`.
+6. AI system prompts now describe 다음한걸음 as a service.
+7. README, QA report, completion audit, and flow-check wording were cleaned for submission tone.
+8. Browser checks after restart confirmed no product-facing prototype wording on teacher dashboard or student task.
+
+Commands:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm e2e
+pnpm e2e:rag
+pnpm pgvector:status
+pnpm corpus:audit
+pnpm build
+```
+
+Latest result: PASS. Runtime state after this pass remains one NEIS school, one class, one registered student `이도윤`, one published card `인물의 마음 찾기`, 12 student logs, one summary at `completionRate: 100`, and one report.

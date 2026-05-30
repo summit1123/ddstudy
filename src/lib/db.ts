@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { demoDb, emptyDb } from "./demo-seed";
+import { emptyDb, seedDb } from "./seed-data";
 import type {
   AppDb,
   CardReview,
@@ -21,7 +21,7 @@ async function ensureDbFile() {
   try {
     await fs.access(dbPath);
   } catch {
-    await writeDb(demoDb);
+    await writeDb(seedDb);
   }
 }
 

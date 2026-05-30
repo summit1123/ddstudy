@@ -116,7 +116,7 @@ async function probe(candidate: Candidate) {
     const response = await fetch(candidate.sourceUrl, {
       method: "GET",
       headers: {
-        "user-agent": "daeum-hangeoreum-demo-source-candidate-collector/0.1",
+        "user-agent": "daeum-hangeoreum-source-candidate-collector/0.1",
       },
       signal: AbortSignal.timeout(10000),
     });

@@ -1,6 +1,6 @@
-import { TeacherDemoApp } from "@/components/next-step-demo";
+import { TeacherApp } from "@/components/next-step-app";
 
 export default async function StudentReportPage({ params }: { params: Promise<{ studentId: string }> }) {
   const { studentId } = await params;
-  return <TeacherDemoApp initialView="reports" initialStudentId={studentId} />;
+  return <TeacherApp initialView="reports" initialStudentId={studentId} />;
 }

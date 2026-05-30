@@ -147,7 +147,7 @@ export function createId(prefix: string) {
 }
 
 function dataRoot() {
-  return process.env.DAEUM_DATA_DIR ?? path.join(process.cwd(), ".demo-data");
+  return process.env.DAEUM_DATA_DIR ?? path.join(process.cwd(), ".daeum-data");
 }
 
 export function dataPath(name: string) {

@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       schema: lessonJsonSchema,
       zodSchema: GeneratedLessonSchema,
       system:
-        "You generate concise Korean lesson plans for the 다음한걸음 demo. Use only the supplied standards/resources for citations. Return JSON only.",
+        "You generate concise Korean lesson plans for the 다음한걸음 service. Use only the supplied standards/resources for citations. Return JSON only.",
       user: [
         `Subject: ${input.subject}`,
         `Grade band: ${input.gradeBand}`,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildStudentReport, buildTaskSummary } from "@/lib/reporting";
-import { resolveDemoStudentId, validatePublishedStudentCard } from "@/lib/student-task-validation";
+import { resolveStudentId, validatePublishedStudentCard } from "@/lib/student-task-validation";
 
 export async function POST(
   request: Request,
@@ -11,7 +11,7 @@ export async function POST(
   if (!validation.ok) {
     return NextResponse.json({ error: validation.error }, { status: 404 });
   }
-  const studentId = resolveDemoStudentId(validation.db, request);
+  const studentId = resolveStudentId(validation.db, request);
 
   const taskSummary = await buildTaskSummary(studentId, cardId);
   const report = await buildStudentReport(studentId, cardId);
@@ -32,7 +32,7 @@ export async function GET(
   if (!validation.ok) {
     return NextResponse.json({ error: validation.error }, { status: 404 });
   }
-  const studentId = resolveDemoStudentId(validation.db, request);
+  const studentId = resolveStudentId(validation.db, request);
 
   const taskSummary = await buildTaskSummary(studentId, cardId);
   return NextResponse.json({

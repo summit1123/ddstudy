@@ -1,6 +1,6 @@
 # Corpus Audit - 다음한걸음
 
-Generated at: 2026-05-30T19:39:31.706Z
+Generated at: 2026-05-30T20:20:01.164Z
 
 ## pgvector State
 

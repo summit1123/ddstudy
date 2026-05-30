@@ -1,5 +1,5 @@
-import { TeacherDemoApp } from "@/components/next-step-demo";
+import { TeacherApp } from "@/components/next-step-app";
 
 export default function TeacherDashboardPage() {
-  return <TeacherDemoApp initialView="dashboard" />;
+  return <TeacherApp initialView="dashboard" />;
 }

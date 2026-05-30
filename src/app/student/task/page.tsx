@@ -1,5 +1,5 @@
-import { StudentDemoApp } from "../../../components/next-step-demo";
+import { StudentApp } from "../../../components/next-step-app";
 
 export default function StudentTaskPage() {
-  return <StudentDemoApp initialView="task" />;
+  return <StudentApp initialView="task" />;
 }

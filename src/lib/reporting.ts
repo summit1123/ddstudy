@@ -188,7 +188,7 @@ export async function buildStudentReport(studentId: string, cardId?: string) {
 
 export function defaultLogPayload(extra?: Record<string, unknown>) {
   return {
-    client: "demo-web",
+    client: "student-web",
     ...extra
   };
 }
