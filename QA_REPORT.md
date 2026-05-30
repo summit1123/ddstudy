@@ -565,3 +565,28 @@ pnpm pgvector:status
 ```
 
 Result: PASS.
+
+## Student Mobile Shell And Assignment Clarity - 2026-05-30
+
+Purpose: make `/student/task` look and behave like a student mobile app on desktop as well as mobile, and make it clear that the visible task comes from the teacher-published assignment.
+
+Changes verified:
+
+1. Student app desktop shell no longer uses the original 941px reference-image width. It is constrained to a phone-sized `430px` device frame on desktop and full width on real mobile.
+2. Student task screen now shows `선생님이 배포한 과제` with the persisted lesson assignment instruction before the generated step card.
+3. Current AI-generated step is labeled `지금 할 일`, so the screen separates the teacher assignment from the current executable action.
+4. Font sizes, visual hint, quiz buttons, bottom nav, and progress stepper were reduced to mobile-app scale.
+5. Browser screenshot captured:
+   - `/tmp/daeum-review-screenshots-student-mobile-pass/02-student-task-mobile-final.png`
+
+Commands:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+E2E_BASE_URL=http://localhost:3001 pnpm e2e
+E2E_BASE_URL=http://localhost:3001 pnpm e2e:rag
+```
+
+Result: PASS.

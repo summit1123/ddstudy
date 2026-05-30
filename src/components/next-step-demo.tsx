@@ -2290,6 +2290,7 @@ function StudentTaskScreen({
   helpSentence,
   askTeacherSentence,
   quiz,
+  assignmentInstruction,
   completeStep,
   requestHelp,
   requestSimplify,
@@ -2313,6 +2314,7 @@ function StudentTaskScreen({
   helpSentence: string;
   askTeacherSentence: string;
   quiz: { question: string; choices: string[]; answer: string };
+  assignmentInstruction?: string | null;
   completeStep: () => void;
   requestHelp: () => void;
   requestSimplify: () => void;
@@ -2360,6 +2362,10 @@ function StudentTaskScreen({
         <h1>{cardTitle}</h1>
         <Image className="dhg-mascot-asset" src="/assets/generated/student-mascot.png" alt="" width={108} height={108} />
       </section>
+      <section className="dhg-student-assignment">
+        <strong>선생님이 배포한 과제</strong>
+        <p>{assignmentInstruction || "선생님이 만든 실행카드의 단계를 차례대로 해봅니다."}</p>
+      </section>
       {showKeywords ? (
         <section className="dhg-support-card easy-language">
           <h2>쉬운 말로 먼저 볼게요</h2>
@@ -2376,6 +2382,7 @@ function StudentTaskScreen({
       ) : null}
       <section className="dhg-mobile-task-card">
         <span className="dhg-step-badge">{currentStepIndex + 1}단계</span>
+        <small className="dhg-current-task-label">지금 할 일</small>
         <h2>{stepText}</h2>
         {showVisualFirst ? <VisualHintView hint={visualHint} /> : null}
         <aside>
@@ -2910,6 +2917,7 @@ export function StudentDemoApp({ initialView = "task", initialCardId }: { initia
             helpSentence={currentStep.helpSentence}
             askTeacherSentence={task.card.reviewJson.askTeacherSentence || currentStep.helpSentence}
             quiz={currentQuiz}
+            assignmentInstruction={task.lesson?.assignmentInstruction}
             completeStep={completeStep}
             requestHelp={requestHelp}
             requestSimplify={requestSimplify}
