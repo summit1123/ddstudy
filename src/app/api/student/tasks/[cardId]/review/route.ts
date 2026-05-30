@@ -13,9 +13,14 @@ export async function POST(
   }
   const studentId = resolveDemoStudentId(validation.db, request);
 
-  const summary = await buildTaskSummary(studentId, cardId);
+  const taskSummary = await buildTaskSummary(studentId, cardId);
   const report = await buildStudentReport(studentId, cardId);
-  return NextResponse.json({ ...summary, report });
+  return NextResponse.json({
+    summary: taskSummary.summary,
+    perStep: taskSummary.perStep,
+    logs: taskSummary.logs,
+    report: report.report,
+  });
 }
 
 export async function GET(
@@ -29,6 +34,10 @@ export async function GET(
   }
   const studentId = resolveDemoStudentId(validation.db, request);
 
-  const summary = await buildTaskSummary(studentId, cardId);
-  return NextResponse.json(summary);
+  const taskSummary = await buildTaskSummary(studentId, cardId);
+  return NextResponse.json({
+    summary: taskSummary.summary,
+    perStep: taskSummary.perStep,
+    logs: taskSummary.logs,
+  });
 }

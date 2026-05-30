@@ -1323,6 +1323,19 @@
   color: #65758b;
 }
 
+.mvp-student-complete strong {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  background: #eff6ff;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1160px) {
   .mvp-teacher-app {
     grid-template-columns: 1fr;

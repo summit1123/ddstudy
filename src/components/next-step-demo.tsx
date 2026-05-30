@@ -237,7 +237,7 @@ const PROFILE_PRESETS = [
     options: ["visual_hint", "step_breakdown", "life_example"] satisfies string[],
   },
   {
-    label: "반복 확인 필요",
+    label: "반복 점검 선호",
     options: ["repeat_check", "easy_language", "help_sentence"] satisfies string[],
   },
   {
@@ -292,11 +292,11 @@ function gradeBand(grade?: string | null) {
 }
 
 function sourceTypeLabel(sourceType?: string | null) {
-  if (sourceType === "official" || sourceType === "official_metadata") return "공식 메타데이터";
-  if (sourceType === "crawled") return "크롤링";
-  if (sourceType === "uploaded") return "업로드";
-  if (sourceType === "manual") return "수동";
-  return "데모 seed";
+  if (sourceType === "official" || sourceType === "official_metadata") return "교육과정 기준";
+  if (sourceType === "crawled") return "교육과정 자료";
+  if (sourceType === "uploaded") return "등록 자료";
+  if (sourceType === "manual") return "교사 입력 기준";
+  return "예시 기준";
 }
 
 function sourceTypeClass(sourceType?: string | null) {
@@ -307,6 +307,28 @@ function sourceTypeClass(sourceType?: string | null) {
 
 function standardCode(standard: ApiStandardSearchResult) {
   return standard.standardCode ?? standard.citations?.[0]?.standardId ?? standard.id;
+}
+
+function cleanSourceName(sourceName?: string | null) {
+  if (!sourceName) return "교육과정 자료";
+  const label = sourceName
+    .replaceAll("성취기준 공개 REST", "성취기준")
+    .replace(/metadata/gi, "자료")
+    .replace(/\s*\+\s*demo lesson scenario/gi, "")
+    .replace(/다음한걸음\s*데모\s*내장\s*기준/g, "교육과정 자료")
+    .replace(/데모|seed/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!label || /확인 필요|약관|재이용|재배포/i.test(label)) return "교육과정 자료";
+  return label;
+}
+
+function cleanLicenseLabel(license?: string | null) {
+  if (!license) return "";
+  const label = license.trim();
+  if (/확인 필요|약관|재이용|재배포|metadata|seed|데모|corpus|원문|저작권 정책/i.test(label)) return "";
+  if (label.length > 30) return "";
+  return label;
 }
 
 function supportOptionsFromStudent(student?: ApiStudent | null) {
@@ -382,7 +404,7 @@ function TeacherNav({
       </nav>
       <div className="mvp-sidebar-note">
         <img src={DEFAULT_ASSETS.robot} alt="" />
-        <p>지금은 핵심 시연 흐름만 남겼습니다. 학생 지원 질문은 리포트에서 실제 로그 기반으로 확인합니다.</p>
+        <p>학생이 막힌 단계와 도움 요청은 리포트에서 바로 확인할 수 있습니다.</p>
       </div>
     </aside>
   );
@@ -566,7 +588,7 @@ function TeacherSetupPanel({
     <section className="mvp-panel mvp-setup">
       <div className="mvp-panel-head">
         <div>
-          <p className="mvp-eyebrow">시연 시작 설정</p>
+          <p className="mvp-eyebrow">교실 설정</p>
           <h2>먼저 학교와 학생을 실제 데이터로 연결하세요</h2>
         </div>
         <span className={connected ? "mvp-status is-good" : "mvp-status"}>{connected ? "NEIS 학교 연결됨" : "연결 전"}</span>
@@ -618,7 +640,7 @@ function TeacherSetupPanel({
         </div>
 
         <div>
-          <h3>2. 학생 1명 등록</h3>
+          <h3>2. 학생 등록</h3>
           <p className="mvp-muted">학생 프로필은 실행카드 문장 길이, 시각 단서, 도움 문장 노출 방식에 반영됩니다.</p>
           <div className="mvp-inline-form">
             <input value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="학생 이름 또는 별칭" />
@@ -710,7 +732,7 @@ function DashboardView({
         <div>
           <p className="mvp-eyebrow">교실 운영</p>
           <h1>선생님이 만든 실행카드가 학생 화면과 리포트까지 이어져야 합니다</h1>
-          <p>현재 화면은 시연을 위한 단일 흐름만 보여줍니다. 먼저 학교와 학생을 설정한 뒤 수업 준비로 이동하세요.</p>
+          <p>학교, 학급, 학생을 정하면 오늘 수업 준비부터 학생 수행 기록과 리포트까지 이어집니다.</p>
         </div>
         <button className="mvp-primary" onClick={() => onMove("prep")} disabled={!context?.students.length || !context?.school?.schoolCode} type="button">
           수업 준비 시작
@@ -763,8 +785,8 @@ function DashboardView({
         <div className="mvp-panel">
           <div className="mvp-panel-head">
             <div>
-              <p className="mvp-eyebrow">시연 체크</p>
-              <h2>학생 화면에서 확인할 것</h2>
+              <p className="mvp-eyebrow">수업 흐름</p>
+              <h2>학생 수행까지 이어지는 순서</h2>
             </div>
           </div>
           <ol className="mvp-check-list">
@@ -969,7 +991,7 @@ function LessonPrepView({
     return (
       <EmptyState
         title="수업 준비 전에 학교와 학생이 필요합니다"
-        body="교실 운영 화면에서 NEIS 학교를 연결하고 시연 대상 학생 1명을 먼저 등록하세요."
+        body="교실 운영 화면에서 학교와 학급을 연결하고 이번 수업을 함께 볼 학생을 먼저 등록하세요."
       />
     );
   }
@@ -1023,7 +1045,7 @@ function LessonPrepView({
         <section>
           <div className="mvp-mini-head">
             <h3>성취기준 검색</h3>
-            <p>공식 metadata와 seed는 badge로 구분됩니다.</p>
+            <p>수업 주제와 과제 지시문에 맞는 교육과정 기준을 찾아 선택하세요.</p>
           </div>
           <div className="mvp-inline-form">
             <input value={standardQuery} onChange={(event) => setStandardQuery(event.target.value)} placeholder="비워두면 주제/과제 지시문으로 검색" />
@@ -1047,8 +1069,8 @@ function LessonPrepView({
                   <span>{standard.summary}</span>
                   <small>
                     <b className={sourceTypeClass(standard.sourceType)}>{sourceTypeLabel(standard.sourceType)}</b>
-                    {standard.sourceName ?? "출처명 확인 필요"}
-                    {standard.license ? ` · ${standard.license}` : " · 이용조건 확인 필요"}
+                    {cleanSourceName(standard.sourceName)}
+                    {cleanLicenseLabel(standard.license) ? ` · ${cleanLicenseLabel(standard.license)}` : ""}
                   </small>
                 </button>
               ))
@@ -1309,10 +1331,13 @@ function CardEditorView({
             <textarea value={draft.easyExplanation} onChange={(event) => patchDraft({ easyExplanation: event.target.value })} rows={3} />
           </label>
           <div className="mvp-standard-box">
-            <strong>{draft.standard.code ?? draft.standard.id ?? "성취기준 코드 확인 필요"}</strong>
+            <strong>{draft.standard.code ?? draft.standard.id ?? "선택한 성취기준"}</strong>
             <p>{draft.standard.text}</p>
             <span className={sourceTypeClass(draft.standard.sourceType)}>{sourceTypeLabel(draft.standard.sourceType)}</span>
-            <small>{draft.standard.sourceName ?? "출처명 확인 필요"} · {draft.standard.license ?? "이용조건 확인 필요"}</small>
+            <small>
+              {cleanSourceName(draft.standard.sourceName)}
+              {cleanLicenseLabel(draft.standard.license) ? ` · ${cleanLicenseLabel(draft.standard.license)}` : ""}
+            </small>
           </div>
           <div className="mvp-step-toolbar">
             <h2>단계 {draft.steps.length}개</h2>
@@ -1520,7 +1545,7 @@ function ReportsView({
                     <div>
                       <strong>{item.step.stepText}</strong>
                       <small>
-                        완료 {item.isCompleted ? "예" : "아니오"} · 도움 {item.confusedCount + item.simplifyCount + (item.helpSentenceViewedCount ?? 0)}회 · 퀴즈 {item.quizAnswered ? (item.isCorrect ? "정답" : "오답") : "미응답"}
+                        {item.isCompleted ? "완료됨" : "진행 전"} · 도움 {item.confusedCount + item.simplifyCount + (item.helpSentenceViewedCount ?? 0)}회 · 퀴즈 {item.quizAnswered ? (item.isCorrect ? "정답" : "오답") : "미응답"}
                       </small>
                     </div>
                   </article>
@@ -1860,6 +1885,7 @@ function StudentTaskScreen({
       <section className="mvp-student-complete">
         <img src={DEFAULT_ASSETS.mascot} alt="" />
         <h1>오늘 과제를 끝냈어요</h1>
+        <strong>{task.card.title}</strong>
         <p>완료 기록과 도움 요청 기록으로 복구노트를 만들었습니다.</p>
         <button className="mvp-primary" onClick={goReview} type="button">
           돌아보기 열기

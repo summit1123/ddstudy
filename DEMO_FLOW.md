@@ -9,9 +9,9 @@
 5. `/teacher/lessons/new` 또는 좌측 `수업 준비`로 이동한다.
 6. 학생을 선택한 뒤 과목, 수업일, 주제, 수업 내용, 과제 지시문을 입력한다.
 7. `성취기준 검색`을 누른다.
-8. 추천 결과에서 source badge를 확인한다.
-   - `공식 메타데이터`: STAS 공개 metadata 기반.
-   - `데모 seed`: 명시적으로 seed로 분리된 보조 데이터.
+8. 추천 결과에서 출처 badge를 확인한다.
+   - `교육과정 기준`: 공개 성취기준 자료 기반.
+   - `예시 기준`: 개발용 보조 자료이며 공식 자료와 구분된다.
 9. 성취기준을 선택하고 지원 옵션을 확인한다.
 10. `실행카드 생성`을 누른다.
 11. `/teacher/cards/:cardId/edit`에서 단계, 확인 질문, 도움 문장, 교사용 팁을 수정한다.
@@ -26,21 +26,21 @@
 
 ## Current Inspectable State
 
-`pnpm e2e` 실행 후 현재 repo에는 직접 확인 가능한 시연 데이터가 남아 있다.
+`pnpm e2e` 실행 후 현재 repo에는 직접 확인 가능한 수업 데이터가 남아 있다.
 
 - 학교: 서울신용산초등학교, source `NEIS`
 - 학급: 4학년 1반
-- 학생: 시연학생
+- 학생: 이도윤
 - 배포 카드: 인물의 마음 찾기
 - 과목: 국어
 - 성취기준 출처: `official`
-- 학생 로그: 6개
+- 학생 로그: 12개
 - 리포트: 1개
 
 ## Notes
 
 - `/teacher/library`는 MVP 범위에서 제거하고 `/teacher/dashboard`로 redirect한다.
 - 학생 화면은 하드코딩 과제가 아니라 최신 published card를 읽는다.
-- STAS official metadata와 seed는 sourceType으로 구분된다.
-- 현재 corpus는 STAS official metadata 일부와 seed를 포함한다. NCIC/KICE 전체 원문 corpus 수집 완료라고 주장하지 않는다.
+- 공개 성취기준 자료와 개발용 보조 자료는 `sourceType`으로 구분된다.
+- 현재 corpus는 STAS 공개 성취기준 자료 일부와 개발용 보조 자료를 포함한다. NCIC/KICE 전체 원문 corpus 수집 완료라고 주장하지 않는다.
 - 학습 도형과 단계별 visual hint는 AI가 반환한 `visualHint`를 기준으로 SVG/CSS로 렌더링한다. 동적으로 그릴 수 있는 학습 도형을 이미지 asset으로 강제 생성하지 않는다.

@@ -141,7 +141,7 @@ assert(classroomContext.school?.id, "School context should exist.");
 const studentResult = await request("/api/students", {
   method: "POST",
   body: JSON.stringify({
-    nickname: "시연학생",
+    nickname: "이도윤",
     classroomId: classroomContext.classroom.id,
     profile: "긴 문장 이해 어려움",
     supportOptions: ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"],
@@ -272,21 +272,33 @@ assert(reloaded.steps.length === editedSteps.length, "Added/deleted/reordered st
 await request(`/api/execution-cards/${generated.card.id}/publish`, { method: "POST" });
 const task = await request(`/api/student/tasks/${generated.card.id}${studentQuery}`);
 assert(task.card.id === generated.card.id, "Student task should load by URL cardId.");
-const firstStep = task.steps[0];
+assert(task.steps.length === reloaded.steps.length, "Student task should expose every edited step.");
 
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/start${studentQuery}`, { method: "POST" });
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/confused${studentQuery}`, { method: "POST" });
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/simplify${studentQuery}`, { method: "POST" });
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/help-sentence${studentQuery}`, { method: "POST" });
-await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/quiz${studentQuery}`, {
-  method: "POST",
-  body: JSON.stringify({ answer: firstStep.microQuizJson.answer }),
-});
-const completeResult = await request(`/api/student/tasks/${generated.card.id}/steps/${firstStep.id}/complete${studentQuery}`, { method: "POST" });
-assert(completeResult.summary.helpRequestCount >= 3, "Student help events should be counted in summary.");
+let finalSummary = null;
+for (const [index, step] of task.steps.entries()) {
+  await request(`/api/student/tasks/${generated.card.id}/steps/${step.id}/start${studentQuery}`, { method: "POST" });
+  if (index === 0) {
+    await request(`/api/student/tasks/${generated.card.id}/steps/${step.id}/confused${studentQuery}`, { method: "POST" });
+    await request(`/api/student/tasks/${generated.card.id}/steps/${step.id}/simplify${studentQuery}`, { method: "POST" });
+    await request(`/api/student/tasks/${generated.card.id}/steps/${step.id}/help-sentence${studentQuery}`, { method: "POST" });
+  }
+  await request(`/api/student/tasks/${generated.card.id}/steps/${step.id}/quiz${studentQuery}`, {
+    method: "POST",
+    body: JSON.stringify({ answer: step.microQuizJson.answer }),
+  });
+  const completeResult = await request(`/api/student/tasks/${generated.card.id}/steps/${step.id}/complete${studentQuery}`, { method: "POST" });
+  finalSummary = completeResult.summary;
+}
+assert(finalSummary?.completionRate === 100, "Student should complete the full published task in E2E.");
+assert(finalSummary.helpRequestCount >= 3, "Student help events should be counted in summary.");
+
+const review = await request(`/api/student/tasks/${generated.card.id}/review${studentQuery}`, { method: "POST" });
+assert(review.summary?.generatedReviewJson?.goodPoints?.length > 0, "Completed task should generate a student review note.");
+assert(review.report?.summary?.includes("100%"), "Review generation should refresh the teacher-facing report.");
 
 const report = await request(`/api/reports/students/${studentResult.student.id}?cardId=${generated.card.id}`);
 assert(report.summary.helpRequestCount >= 3, "Teacher report should reflect student help logs.");
+assert(report.summary.completionRate === 100, "Teacher report should reflect the fully completed student task.");
 assert(report.perStep?.length === reloaded.steps.length, "Report should include per-step flow for the edited card.");
 
 console.log(JSON.stringify({
