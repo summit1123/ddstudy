@@ -1,39 +1,46 @@
 # Demo Flow
 
-1. Open `/teacher/dashboard`.
-2. In `교실 운영 설정`, connect the school/class.
-   - Current app supports NEIS school search from this panel.
-   - If a school is not connected yet, the UI explicitly shows `학교 연결 전`; it does not pretend that a fake school came from NEIS.
-3. Register students in `학생 등록`.
-   - The clean demo state does not preload fake students.
-   - Students can be added through `POST /api/students` or the dashboard form, and reports/student screens use the registered student IDs.
-4. Confirm date, active tasks, support-needed students, and recent cards.
-5. Open `수업 준비` or `/teacher/lessons/new`.
-6. Use topic `직사각형의 둘레 구하기` or another subject/topic such as `인물의 마음 찾기`.
-5. Search standards through `/api/standards/search?q=직사각형 둘레&subject=수학&gradeBand=초4`.
-6. Confirm or select an official STAS metadata result. The card shows `공식 메타데이터`, source name, source URL, and license/terms note.
-7. Keep support options: 쉬운 말 필요, 단계 쪼개기, 시각 단서, 반복 확인, 도움 요청 문장, 생활 예시. Internally these are saved as canonical keys: `easy_language`, `step_breakdown`, `visual_hint`, `repeat_check`, `help_sentence`, `life_example`.
-8. Click `실행카드 생성`; the API calls OpenAI with the selected standard and retrieved RAG context, then stores a draft execution card.
-9. Open the card editor, review/edit steps, add/delete if needed.
-10. Click `학생에게 배포`; the card status changes to `published`.
-11. Open `/student/task`; it loads the latest published execution card, not a hardcoded old problem.
-    - Open `/student/tasks/:cardId` to inspect a specific published card by URL.
-    - Use the student selector to switch between registered students.
-12. Student clicks `모르겠어요`.
-13. Student clicks `다시 쉽게 말해줘`.
-14. Student answers the micro quiz.
-15. Student clicks `완료했어요`.
-16. Confirm student support UI: easy-language keyword card, visual hint, emphasized help sentence, repeat-check quiz, and life mission when selected.
-17. Open review, or call `POST /api/student/tasks/:cardId/review`.
-18. Open `/teacher/reports/:studentId` with the registered student ID from the dashboard or API context.
-19. Confirm completion, help counts, stuck-step tags, recommendations, and parent memo.
+이 데모는 랜딩 페이지가 아니라 실제 제품 흐름을 보여준다. 확인 경로는 하나다.
 
-## Known Demo Notes
+1. `/teacher/dashboard`를 연다.
+2. `교실 운영`에서 NEIS 학교 검색으로 학교를 연결한다.
+3. 학년/반을 저장한다.
+4. 학생 1명을 등록하고 지원 프로필을 선택한다.
+5. `/teacher/lessons/new` 또는 좌측 `수업 준비`로 이동한다.
+6. 학생을 선택한 뒤 과목, 수업일, 주제, 수업 내용, 과제 지시문을 입력한다.
+7. `성취기준 검색`을 누른다.
+8. 추천 결과에서 source badge를 확인한다.
+   - `공식 메타데이터`: STAS 공개 metadata 기반.
+   - `데모 seed`: 명시적으로 seed로 분리된 보조 데이터.
+9. 성취기준을 선택하고 지원 옵션을 확인한다.
+10. `실행카드 생성`을 누른다.
+11. `/teacher/cards/:cardId/edit`에서 단계, 확인 질문, 도움 문장, 교사용 팁을 수정한다.
+12. `저장`을 누르고 새로고침해도 수정 내용이 남는지 확인한다.
+13. `학생에게 배포`를 누른다.
+14. `/student/task`를 연다.
+15. 학생 화면에서 교사가 배포한 카드 제목과 현재 단계가 보이는지 확인한다.
+16. 학생이 `모르겠어요`, `다시 쉽게 말해줘`, `문장 보기 기록`, `퀴즈 답변`, `완료했어요`를 누른다.
+17. 필요하면 `도움 문장 듣기`를 누른다. 이 버튼은 `/api/voice/tts`를 실제 호출하며, ElevenLabs 설정이 없으면 실제 오류를 보여준다.
+18. `/student/tasks/:cardId/review`에서 복구노트를 확인한다.
+19. `/teacher/reports/:studentId`에서 완료율, 도움 요청, 퀴즈, 막힌 단계, AI 추천 지원, 보호자 메모가 학생 로그 기반으로 바뀌는지 확인한다.
 
-- The current clean state starts from a local teacher, a pending school connection, one default class selector, no registered students, and no generated task.
-- A student screen with no published task or no registered student shows an explicit empty state instead of a hardcoded old problem.
-- `/teacher/library` is intentionally redirected to the dashboard for the MVP so the demo stays focused on 수업 준비 -> 실행카드 -> 학생 수행 -> 리포트.
-- NEIS is used for school context, schedule, and timetable, not textbook page lookup.
-- Current pgvector corpus uses STAS official 2015 revised achievement-standard metadata plus explicit `sourceType=seed` demo rows.
-- NCIC/KICE full-text curriculum files, achievement-level files, remediation materials, and assessment-tool originals are not claimed as collected; they are documented in `DATA_REQUIRED.md` until source files and license terms are confirmed.
-- Generation responses include a non-secret `ragTrace` object showing which prompt fields and retrieved official metadata rows were used.
+## Current Inspectable State
+
+`pnpm e2e` 실행 후 현재 repo에는 직접 확인 가능한 시연 데이터가 남아 있다.
+
+- 학교: 서울신용산초등학교, source `NEIS`
+- 학급: 4학년 1반
+- 학생: 시연학생
+- 배포 카드: 인물의 마음 찾기
+- 과목: 국어
+- 성취기준 출처: `official`
+- 학생 로그: 6개
+- 리포트: 1개
+
+## Notes
+
+- `/teacher/library`는 MVP 범위에서 제거하고 `/teacher/dashboard`로 redirect한다.
+- 학생 화면은 하드코딩 과제가 아니라 최신 published card를 읽는다.
+- STAS official metadata와 seed는 sourceType으로 구분된다.
+- 현재 corpus는 STAS official metadata 일부와 seed를 포함한다. NCIC/KICE 전체 원문 corpus 수집 완료라고 주장하지 않는다.
+- 학습 도형과 단계별 visual hint는 AI가 반환한 `visualHint`를 기준으로 SVG/CSS로 렌더링한다. 동적으로 그릴 수 있는 학습 도형을 이미지 asset으로 강제 생성하지 않는다.

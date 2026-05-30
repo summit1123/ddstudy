@@ -1,5 +1,57 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
 const baseUrl = process.env.E2E_BASE_URL ?? "http://localhost:3001";
 const testName = "teacher creates card, edits steps, publishes, student completes, report updates";
+
+async function resetAppDb() {
+  const now = new Date().toISOString();
+  const db = {
+    users: [
+      {
+        id: "teacher_local",
+        role: "teacher",
+        name: "교사 계정",
+        email: "teacher@example.local",
+        createdAt: now,
+      },
+    ],
+    schools: [
+      {
+        id: "school_pending",
+        schoolName: "학교 연결 전",
+        schoolCode: "",
+        officeCode: "",
+        address: "NEIS 학교 검색으로 실제 학교를 연결해 주세요.",
+        schoolLevel: "",
+        source: "unconfigured",
+      },
+    ],
+    classrooms: [
+      {
+        id: "classroom_default",
+        schoolId: "school_pending",
+        grade: "4",
+        classNo: "1",
+        teacherId: "teacher_local",
+      },
+    ],
+    students: [],
+    timetables: [],
+    schoolSchedules: [],
+    standards: [],
+    learningResources: [],
+    lessons: [],
+    executionCards: [],
+    executionSteps: [],
+    studentStepLogs: [],
+    studentTaskSummaries: [],
+    reports: [],
+  };
+  const dbPath = path.join(process.cwd(), "data", "app-db.json");
+  await mkdir(path.dirname(dbPath), { recursive: true });
+  await writeFile(dbPath, `${JSON.stringify(db, null, 2)}\n`, "utf8");
+}
 
 async function request(path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -22,6 +74,28 @@ function assert(condition, message) {
 }
 
 console.log(`E2E: ${testName}`);
+
+await resetAppDb();
+
+const schoolSearch = await request("/api/neis/schools/search?keyword=%EC%9A%A9%EC%82%B0&schoolKind=%EC%B4%88%EB%93%B1%ED%95%99%EA%B5%90&pageSize=1");
+assert(schoolSearch.rows?.length > 0, "NEIS school search should return at least one real school row.");
+const school = schoolSearch.rows[0];
+const connectedContext = await request("/api/classroom/context", {
+  method: "PATCH",
+  body: JSON.stringify({
+    school: {
+      schoolName: school.SCHUL_NM,
+      schoolCode: school.SD_SCHUL_CODE,
+      officeCode: school.ATPT_OFCDC_SC_CODE,
+      address: school.ORG_RDNMA ?? "",
+      schoolLevel: school.SCHUL_KND_SC_NM,
+      source: "NEIS",
+    },
+    classroom: { grade: "4", classNo: "1" },
+  }),
+});
+assert(connectedContext.school?.schoolCode === school.SD_SCHUL_CODE, "Classroom context should persist the selected NEIS school.");
+assert(connectedContext.classroom?.grade === "4", "Classroom grade should persist.");
 
 const standardSearch = await request(
   "/api/standards/search?q=%EA%B5%AD%EC%96%B4%20%EC%9D%B8%EB%AC%BC%EC%9D%98%20%EB%A7%88%EC%9D%8C&subject=%EA%B5%AD%EC%96%B4&gradeBand=%EC%B4%884&limit=3",
@@ -67,7 +141,7 @@ assert(classroomContext.school?.id, "School context should exist.");
 const studentResult = await request("/api/students", {
   method: "POST",
   body: JSON.stringify({
-    nickname: "김하늘",
+    nickname: "시연학생",
     classroomId: classroomContext.classroom.id,
     profile: "긴 문장 이해 어려움",
     supportOptions: ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"],

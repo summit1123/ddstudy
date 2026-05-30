@@ -324,6 +324,107 @@ E2E_BASE_URL=http://localhost:3001 pnpm e2e:rag
 
 Result: PASS.
 
+## Ralph Nonstop MVP Reset - 2026-05-31
+
+Purpose: replace the confusing mixed demo surface with a single real classroom flow: NEIS school connection -> one student registration -> lesson prep -> RAG/AI execution card -> edit/save/publish -> student mobile task -> log-based review/report.
+
+What changed in this pass:
+
+1. Replaced the old monolithic UI implementation with a focused MVP surface in `src/components/next-step-demo.tsx`.
+2. Removed the visible 자료 라이브러리 nav path from the product shell; `/teacher/library` still redirects to dashboard.
+3. Removed the lower-left decorative chatbot from the MVP shell. Student support now appears where it is actually grounded: student profile, execution-card support options, help sentence, voice action, and report recommendations.
+4. Rebuilt the teacher dashboard around explicit setup and status: NEIS school/class connection, student registration, flow checklist, current card, and data-based metrics.
+5. Rebuilt the student screen as a phone-sized app shell on desktop and full-width on mobile. It now loads the latest published card and shows one current action, generated visual hint, quiz, help sentence, and actual log buttons.
+6. Added a real ElevenLabs entry point in the student task UI: `도움 문장 듣기` calls `/api/voice/tts`. If the key or voice is missing, the UI displays the real error instead of fake audio.
+7. Removed deterministic post-generation visual-hint overrides in `/api/execution-cards/generate`; AI output is no longer overwritten into a fixed sample pattern after schema validation.
+8. Updated the main e2e to reset the runtime DB, connect a real NEIS elementary school row, register one student, generate a card, edit/save/publish, run student events, and verify the report.
+
+Current runtime state left for manual inspection:
+
+```json
+{
+  "school": "서울신용산초등학교",
+  "schoolSource": "NEIS",
+  "classroom": "4학년 1반",
+  "students": ["시연학생"],
+  "publishedCard": "인물의 마음 찾기",
+  "subject": "국어",
+  "standardSourceType": "official",
+  "studentLogs": 6,
+  "reports": 1
+}
+```
+
+Commands run:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+pnpm e2e
+pnpm e2e:rag
+pnpm pgvector:status
+pnpm corpus:audit
+```
+
+Results:
+
+```json
+{
+  "typecheck": "PASS",
+  "lint": "PASS",
+  "build": "PASS",
+  "e2e": {
+    "ok": true,
+    "cardId": "card_mpsoiwu8_l71xgf",
+    "lessonId": "lesson_mpsoin9s_qipq3a",
+    "helpRequestCount": 3,
+    "completionRate": 33
+  },
+  "e2eRag": {
+    "ok": true,
+    "cases": [
+      "직사각형의 둘레",
+      "인물의 마음 찾기",
+      "식물의 한살이",
+      "분수의 덧셈"
+    ],
+    "visualHintTypes": [
+      "rectangle_dimension",
+      "sequence_checklist",
+      "text_only"
+    ]
+  },
+  "pgvector": {
+    "ok": true,
+    "table": "standards_vector_chunks",
+    "embeddingDimension": 1536,
+    "extensionVersion": "0.8.2",
+    "chunks": 5889,
+    "bySourceType": {
+      "official": 5885,
+      "seed": 4
+    }
+  },
+  "corpusAudit": {
+    "rowCount": 5889,
+    "sourceCounts": {
+      "official": 5885,
+      "seed": 4
+    },
+    "canClaimCompleteOfficialCorpus": false,
+    "canClaimSomeOfficialMetadataEmbedded": true
+  }
+}
+```
+
+Browser smoke:
+
+- `/teacher/dashboard`: setup, one student, current flow, metrics render without console errors.
+- `/teacher/cards/card_mpsoiwu8_l71xgf/edit`: compact editor and live phone preview render without layout breakage.
+- `/student/task`: phone-sized student app renders the published card and current generated step.
+- `/teacher/reports/student_mpsoihwa_3opzog`: report reflects log-based completion/help/quiz/stuck-step values.
+
 Verified:
 
 1. Official metadata search for 수학 `직사각형의 둘레`.

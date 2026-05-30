@@ -9,7 +9,6 @@ import { id, readDb, updateDb } from "@/lib/db";
 import { formatResourcesForPrompt, searchResources } from "../../../../lib/rag";
 import {
   ExecutionCardPayloadSchema,
-  ExecutionCardPayloadStepSchema,
   executionCardJsonSchema,
   GenerateExecutionCardRequestSchema,
   validationError,
@@ -27,68 +26,6 @@ const GeneratedExecutionCardSchema = ExecutionCardPayloadSchema.omit({
 });
 
 type GenerateExecutionCardInput = z.infer<typeof GenerateExecutionCardRequestSchema>;
-type ExecutionCardPayloadStep = z.infer<typeof ExecutionCardPayloadStepSchema>;
-
-function specializeVisualHints(
-  steps: ExecutionCardPayloadStep[],
-  context: { subject: string; topic: string; assignmentInstruction?: string },
-) {
-  const lowerContext = `${context.subject} ${context.topic} ${context.assignmentInstruction ?? ""}`.toLowerCase();
-  const stepTexts = steps.map((step) => step.stepText);
-  const checklistItems = stepTexts.slice(0, 5);
-
-  return steps.map((step, index) => {
-    if (lowerContext.match(/직사각형|둘레|가로|세로|사각형/)) {
-      return {
-        ...step,
-        visualHint: {
-          type: "rectangle_dimension" as const,
-          data: { labels: ["가로", "세로"], focus: index === 0 ? "dimension" : "perimeter" },
-          assetUrl: null,
-          alt: "직사각형의 가로와 세로를 표시한 그림",
-        },
-      };
-    }
-
-    if (lowerContext.match(/분수|수직선|덧셈|뺄셈/) && context.subject === "수학") {
-      return {
-        ...step,
-        visualHint: {
-          type: "number_line" as const,
-          data: { start: 0, end: 1, labels: ["0", "1"], focusStep: index + 1 },
-          assetUrl: null,
-          alt: "0부터 1까지의 수직선",
-        },
-      };
-    }
-
-    if (lowerContext.match(/한살이|과정|순서|자라는|자라나는|단계/)) {
-      return {
-        ...step,
-        visualHint: {
-          type: "sequence_checklist" as const,
-          data: { items: checklistItems, focusStep: index + 1 },
-          assetUrl: null,
-          alt: "단계 순서를 확인하는 체크리스트",
-        },
-      };
-    }
-
-    if (lowerContext.match(/인물|마음|문장|글|읽기/)) {
-      return {
-        ...step,
-        visualHint: {
-          type: "sequence_checklist" as const,
-          data: { items: ["문장 찾기", "말과 행동 확인", "마음 쓰기"], focusStep: index + 1 },
-          assetUrl: null,
-          alt: "글 읽기 순서를 확인하는 체크리스트",
-        },
-      };
-    }
-
-    return step;
-  });
-}
 
 function buildRagTrace({
   input,
@@ -248,14 +185,14 @@ export async function POST(request: Request) {
               "Support option rules:",
               "- easy_language: put difficult words into keywords with short easyMeaning.",
               "- step_breakdown: keep 3-5 steps but make each step a concrete action.",
-              "- visual_hint: prefer rectangle_dimension, number_line, sequence_checklist, or image_asset over text_only when suitable.",
+              "- visual_hint: choose visualHint from the actual subject and task. Use rectangle_dimension only for geometry tasks that need side/dimension labels, number_line for number/fraction line tasks, sequence_checklist for ordered reading/process/lifecycle tasks, image_asset only when a static illustration is essential, and text_only when a visual would be misleading.",
               "- repeat_check: include one simple microQuiz for every step.",
               "- help_sentence: write a natural sentence the student can say to the teacher for every step.",
               "- life_example: include a daily-life example in easyExplanation or review.homeMission.",
             ].join("\n")
           : "",
         "Create 3 to 5 concrete, executable student steps. Do not return fewer than 3 steps.",
-        "Choose visualHint dynamically from the topic: rectangle_dimension for rectangle/perimeter geometry, number_line for fraction/number tasks, sequence_checklist for lifecycle/process/reading-order tasks, and text_only only when no stronger visual hint fits.",
+        "Do not reuse a fixed sample. The card must visibly follow the teacher's topic, assignment instruction, selected standard, learner support options, and retrieved RAG context.",
         externalLesson?.agenda ? `Lesson agenda: ${JSON.stringify(externalLesson.agenda)}` : "",
         "Standards/resources:",
         formatResourcesForPrompt(resources),
@@ -282,12 +219,7 @@ export async function POST(request: Request) {
         homeMission: homeMissionFor(topic, supportOptions, generated.review.homeMission),
       },
     });
-    const specialized = ExecutionCardPayloadSchema.parse({
-      ...validated,
-      steps: specializeVisualHints(validated.steps, { subject, topic, assignmentInstruction }),
-    });
-
-    if (!input.save) return jsonResponse({ card: specialized, resources, ragTrace });
+    if (!input.save) return jsonResponse({ card: validated, resources, ragTrace });
     const lessonIdForSave = resolvedLessonId;
     if (!lessonIdForSave) {
       throw new ApiError(400, "missing_lesson_id", "Saving an execution card requires a persisted lessonId.");
@@ -298,39 +230,39 @@ export async function POST(request: Request) {
       const card: ExecutionCard = {
         id: cardId,
         lessonId: lessonIdForSave,
-        title: specialized.title,
-        goal: specialized.goal,
-        subject: specialized.subject,
-        grade: specialized.grade,
-        topic: specialized.topic,
+        title: validated.title,
+        goal: validated.goal,
+        subject: validated.subject,
+        grade: validated.grade,
+        topic: validated.topic,
         standardJson: {
-          id: specialized.standard.id ?? undefined,
-          code: specialized.standard.code ?? undefined,
-          text: specialized.standard.text,
-          sourceType: specialized.standard.sourceType ?? undefined,
-          sourceName: specialized.standard.sourceName ?? undefined,
-          sourceUrl: specialized.standard.sourceUrl ?? undefined,
-          license: specialized.standard.license ?? undefined,
+          id: validated.standard.id ?? undefined,
+          code: validated.standard.code ?? undefined,
+          text: validated.standard.text,
+          sourceType: validated.standard.sourceType ?? undefined,
+          sourceName: validated.standard.sourceName ?? undefined,
+          sourceUrl: validated.standard.sourceUrl ?? undefined,
+          license: validated.standard.license ?? undefined,
         },
-        easyExplanation: specialized.easyExplanation,
-        keywordsJson: specialized.keywords,
+        easyExplanation: validated.easyExplanation,
+        keywordsJson: validated.keywords,
         supportOptionsJson: supportOptions,
         reviewJson: {
-          goodPoints: specialized.review.goodPoints,
-          nextReview: specialized.review.nextReview.map((item) => ({
+          goodPoints: validated.review.goodPoints,
+          nextReview: validated.review.nextReview.map((item) => ({
             title: item.title,
             type: item.type,
             description: item.description,
             resourceId: item.resourceId ?? undefined,
           })),
-          askTeacherSentence: specialized.review.askTeacherSentence,
-          homeMission: specialized.review.homeMission ?? undefined,
+          askTeacherSentence: validated.review.askTeacherSentence,
+          homeMission: validated.review.homeMission ?? undefined,
         },
         status: "draft",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      const steps: ExecutionStep[] = specialized.steps.map((step, index) => ({
+      const steps: ExecutionStep[] = validated.steps.map((step, index) => ({
         id: id("step"),
         cardId,
         order: step.order || index + 1,
@@ -355,7 +287,7 @@ export async function POST(request: Request) {
       return { card, steps };
     });
 
-    return jsonResponse({ ...saved, generated: specialized, resources, ragTrace }, 201);
+    return jsonResponse({ ...saved, generated: validated, resources, ragTrace }, 201);
   } catch (error) {
     return errorResponse(error);
   }

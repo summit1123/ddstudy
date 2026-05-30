@@ -1,106 +1,109 @@
 "use client";
+/* eslint-disable @next/next/no-img-element, react-hooks/exhaustive-deps */
 
 import type * as React from "react";
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
-  Bell,
-  CalendarDays,
-  ChevronDown,
-  ChevronLeft,
+  BookOpen,
+  Check,
   ChevronRight,
   ClipboardList,
-  GraduationCap,
+  Headphones,
   LayoutDashboard,
+  Loader2,
+  Megaphone,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Save,
   Search,
-  School,
+  Send,
+  Trash2,
+  UserPlus,
   Users,
 } from "lucide-react";
-import { demoDb } from "@/lib/demo-seed";
 import {
   SUPPORT_OPTION_KEYS,
   SUPPORT_OPTION_LABELS,
   hasSupportOption,
   normalizeSupportOptions,
-  supportOptionLabels,
   type SupportOptionKey,
 } from "@/lib/support-options";
 
 type TeacherView = "dashboard" | "prep" | "cards" | "reports";
 type StudentView = "task" | "review" | "preview";
-type RequestState = "idle" | "loading" | "saving" | "error";
+type LoadState = "idle" | "loading" | "saving" | "error";
 
-type LessonStep = {
-  id: string;
-  title: string;
-  visualHint: {
-    type: "text_only" | "rectangle_dimension" | "number_line" | "sequence_checklist" | "image_asset";
-    data?: Record<string, unknown> | null;
-    assetUrl?: string | null;
-    alt?: string | null;
-  };
-  checkQuestion: string;
-  choices: string[];
-  answer: string;
-  quizExplanation?: string | null;
-  helpSentence: string;
-  teacherTip: string;
+type ApiClassroomContext = {
+  teacher: { id: string; name: string } | null;
+  school: {
+    id: string;
+    schoolName: string;
+    schoolCode: string;
+    officeCode: string;
+    address: string;
+    schoolLevel: string;
+    source: string;
+  } | null;
+  classroom: {
+    id: string;
+    schoolId: string;
+    grade: string;
+    classNo: string;
+    teacherId: string;
+  } | null;
+  students: ApiStudent[];
+  activeCardId?: string | null;
+  summariesByStudentId?: Record<string, ApiTaskSummary | null>;
 };
 
-type ExecutionCard = {
+type ApiStudent = {
   id: string;
-  lessonId: string;
-  subject: string;
-  grade: string;
-  title: string;
-  topic: string;
-  goal: string;
-  easyExplanation: string;
-  standard: {
-    id?: string | null;
-    code?: string | null;
-    text: string;
-    sourceType?: string | null;
-    sourceName?: string | null;
-    sourceUrl?: string | null;
-    license?: string | null;
-  };
-  keywords: Array<{ word: string; easyMeaning: string }>;
-  supportOptions: string[];
-  review: {
-    goodPoints: string[];
-    nextReview: Array<{ title: string; type: "video" | "practice" | "card" | "text"; description: string; resourceId?: string | null }>;
-    askTeacherSentence: string;
-    homeMission?: string | null;
-  };
-  date: string;
-  status: "draft" | "review" | "deployed";
-  steps: LessonStep[];
-};
-
-type StudentProgress = {
-  id: string;
-  name: string;
-  avatar: string;
-  task: string;
-  progress: number;
-  blockedStep: string;
-  status: "waiting" | "blocked" | "learning" | "smooth" | "done";
-  profile: string;
-  supportOptions: string[];
+  nickname: string;
+  supportProfileJson?: Record<string, unknown>;
 };
 
 type ApiLesson = {
   id: string;
+  teacherId: string;
+  classroomId: string;
+  schoolId: string;
   grade: string;
   subject: string;
   topic: string;
   lessonDate: string;
   lessonContent: string;
   assignmentInstruction: string;
+  selectedStandardId: string | null;
   supportOptionsJson: string[];
+  createdAt: string;
+};
+
+type VisualHint = {
+  type: "text_only" | "rectangle_dimension" | "number_line" | "sequence_checklist" | "image_asset";
+  data?: Record<string, unknown> | null;
+  assetUrl?: string | null;
+  alt?: string | null;
+};
+
+type MicroQuiz = {
+  question: string;
+  choices: string[];
+  answer: string;
+  explanation?: string | null;
+};
+
+type ApiExecutionStep = {
+  id: string;
+  cardId: string;
+  order: number;
+  stepText: string;
+  visualHintJson: VisualHint;
+  microQuizJson: MicroQuiz;
+  helpSentence: string;
+  teacherTip: string;
 };
 
 type ApiExecutionCard = {
@@ -131,23 +134,14 @@ type ApiExecutionCard = {
   };
   status: "draft" | "published";
   createdAt: string;
+  updatedAt?: string;
+  publishedAt?: string;
 };
 
-type ApiExecutionStep = {
-  id: string;
-  cardId: string;
-  order: number;
-  stepText: string;
-  visualHintJson: {
-    type: "text_only" | "rectangle_dimension" | "number_line" | "sequence_checklist" | "image_asset";
-    data?: Record<string, unknown> | null;
-    assetUrl?: string | null;
-    alt?: string | null;
-    labels?: string[];
-  };
-  microQuizJson: { question: string; choices: string[]; answer: string; explanation?: string | null };
-  helpSentence: string;
-  teacherTip: string;
+type CardBundle = {
+  card: ApiExecutionCard;
+  lesson: ApiLesson | null;
+  steps: ApiExecutionStep[];
 };
 
 type ApiTaskSummary = {
@@ -165,95 +159,21 @@ type ApiTaskSummary = {
   };
 };
 
-type ApiReportPerStep = {
-  step: {
-    id: string;
-    order: number;
-    stepText: string;
-  };
-  isCompleted: boolean;
-  confusedCount: number;
-  simplifyCount: number;
-  helpSentenceViewedCount?: number;
-  quizAnswered: boolean;
-  isCorrect: boolean;
-  timeSeconds: number;
-};
-
-type ApiStudentReportResult = {
-  report: {
-    summary: string;
-    difficultyTagsJson: string[];
-    aiRecommendationsJson: string[];
-    parentMemo: string;
-    createdAt: string;
-  };
-  summary: ApiTaskSummary;
-  perStep: ApiReportPerStep[];
-};
-
-type ApiStudent = {
+type ApiStudentLog = {
   id: string;
-  nickname: string;
-  supportProfileJson?: Record<string, unknown>;
+  studentId: string;
+  cardId: string;
+  stepId: string;
+  eventType: "started" | "completed" | "confused" | "simplify" | "help_sentence_viewed" | "quiz_answered";
+  payloadJson: Record<string, unknown>;
+  createdAt: string;
 };
 
-type ApiTeacherAssistantResult = {
-  student: {
-    id: string;
-    nickname: string;
-    profile: string;
-    supportOptions: string[];
-  };
-  card: { id: string; title: string; subject: string; grade: string } | null;
-  answer: {
-    answer: string;
-    nextActions: string[];
-    questionToAskStudent: string;
-    evidence: string[];
-  };
-};
-
-type ApiClassroomContext = {
-  teacher: { id: string; name: string } | null;
-  school: {
-    id: string;
-    schoolName: string;
-    schoolCode: string;
-    officeCode: string;
-    address: string;
-    schoolLevel: string;
-    source: string;
-  } | null;
-  classroom: {
-    id: string;
-    schoolId: string;
-    grade: string;
-    classNo: string;
-    teacherId: string;
-  } | null;
-  students: ApiStudent[];
-  activeCardId?: string | null;
-  summariesByStudentId?: Record<string, ApiTaskSummary | null>;
-};
-
-type ApiNeisSchool = {
-  ATPT_OFCDC_SC_CODE: string;
-  ATPT_OFCDC_SC_NM: string;
-  SD_SCHUL_CODE: string;
-  SCHUL_NM: string;
-  SCHUL_KND_SC_NM: string;
-  ORG_RDNMA?: string | null;
-  LCTN_SC_NM?: string | null;
-};
-
-type ApiStudentTask = {
+type ApiStudentTask = CardBundle & {
   studentId: string | null;
-  student?: ApiStudent | null;
-  students?: ApiStudent[];
-  card: ApiExecutionCard;
-  lesson: ApiLesson | null;
-  steps: ApiExecutionStep[];
+  student: ApiStudent | null;
+  students: ApiStudent[];
+  logs: ApiStudentLog[];
   summary?: ApiTaskSummary | null;
 };
 
@@ -265,198 +185,72 @@ type ApiStandardSearchResult = {
   summary: string;
   url?: string;
   standardCode?: string;
-  sourceType?: "seed" | "official" | "crawled" | "uploaded" | "manual";
+  sourceType?: "seed" | "official" | "crawled" | "uploaded" | "manual" | string;
   sourceName?: string;
   sourceUrl?: string;
   license?: string;
-  chunkType?: "standard" | "achievement_level" | "remediation" | "assessment" | "metadata";
   citations: Array<{ standardId: string; title: string; source: string; locator?: string; quote?: string }>;
   score?: number;
 };
 
-type DemoSnapshot = {
-  schoolId: string;
-  school: string;
-  schoolCode: string;
-  officeCode: string;
-  schoolAddress: string;
-  schoolSource: string;
-  classroomId: string;
-  className: string;
-  classGrade: string;
-  classNo: string;
-  teacherId: string;
-  teacherName: string;
-  dateLabel: string;
-  lessonTopic: string;
-  activeCardId: string;
-  students: StudentProgress[];
-  cards: ExecutionCard[];
+type ApiNeisSchool = {
+  ATPT_OFCDC_SC_CODE: string;
+  ATPT_OFCDC_SC_NM: string;
+  SD_SCHUL_CODE: string;
+  SCHUL_NM: string;
+  SCHUL_KND_SC_NM: string;
+  ORG_RDNMA?: string | null;
 };
 
-type LessonPrepPayload = {
-  schoolId: string;
-  classroomId: string;
-  grade: string;
-  classNo: string;
-  subject: string;
-  lessonDate: string;
-  topic: string;
-  lessonContent: string;
-  assignmentInstruction: string;
-  selectedStandardId?: string;
-  selectedStandardCode?: string;
-  selectedStandardText?: string;
-  selectedStandardSourceType?: string;
-  selectedStandardSourceName?: string;
-  selectedStandardSourceUrl?: string;
-  selectedStandardLicense?: string;
-  supportOptions: string[];
-};
-
-function normalizeLessonDateForInput(value: string) {
-  const isoLike = value.match(/\d{4}[.-]\d{2}[.-]\d{2}/)?.[0];
-  return isoLike?.replaceAll(".", "-") ?? new Date().toISOString().slice(0, 10);
-}
-
-function gradeBandFromGrade(grade: string) {
-  return grade.startsWith("초") ? grade : `초${grade}`;
-}
-
-function sourceTypeLabel(sourceType?: ApiStandardSearchResult["sourceType"] | string | null) {
-  if (sourceType === "official" || sourceType === "official_metadata") return "공식 메타데이터";
-  if (sourceType === "crawled") return "크롤링";
-  if (sourceType === "uploaded") return "업로드";
-  if (sourceType === "manual") return "수동";
-  return "데모 seed";
-}
-
-function sourceTypeClassName(sourceType?: ApiStandardSearchResult["sourceType"]) {
-  return `dhg-source-badge is-${sourceType ?? "seed"}`;
-}
-
-function standardCode(standard: ApiStandardSearchResult) {
-  return standard.standardCode ?? standard.citations[0]?.standardId ?? standard.id;
-}
-
-function standardSourceUrl(standard: ApiStandardSearchResult) {
-  return standard.sourceUrl ?? standard.url;
-}
-
-function formatDuration(seconds: number) {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "0분";
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return minutes > 0 ? `${minutes}분 ${rest.toString().padStart(2, "0")}초` : `${rest}초`;
-}
-
-function teacherRoute(view: TeacherView, cardId?: string) {
-  if (view === "dashboard") return "/teacher/dashboard";
-  if (view === "prep") return "/teacher/lessons/new";
-  if (view === "cards") return cardId ? `/teacher/cards/${encodeURIComponent(cardId)}/edit` : "/teacher/cards";
-  if (view === "reports") return "/teacher/reports";
-  return "/teacher/dashboard";
-}
-
-function studentRoute(view: StudentView, cardId?: string) {
-  if (view === "preview") return "/student/preview";
-  if (view === "review") return cardId ? `/student/tasks/${encodeURIComponent(cardId)}/review` : "/student/review";
-  return cardId ? `/student/tasks/${encodeURIComponent(cardId)}` : "/student/task";
-}
-
-function withStudentQuery(path: string, studentId?: string) {
-  return studentId ? `${path}${path.includes("?") ? "&" : "?"}studentId=${encodeURIComponent(studentId)}` : path;
-}
-
-function studentProfileLabel(student?: Pick<ApiStudent, "supportProfileJson"> | null) {
-  const profile = student?.supportProfileJson?.profile;
-  return typeof profile === "string" && profile.trim() ? profile : "지원 프로필 미설정";
-}
-
-function studentSupportOptions(student?: Pick<ApiStudent, "supportProfileJson"> | null) {
-  const options = student?.supportProfileJson?.supportOptions;
-  return Array.isArray(options)
-    ? normalizeSupportOptions(options.filter((item): item is string => typeof item === "string"))
-    : [];
-}
-
-function copyTextToClipboard(text: string) {
-  if (typeof navigator === "undefined" || !navigator.clipboard) return;
-  void navigator.clipboard.writeText(text);
-}
-
-function buildInitialSnapshot(): DemoSnapshot {
-  const school = demoDb.schools[0];
-  const classroom = demoDb.classrooms[0];
-  const teacher = demoDb.users.find((user) => user.role === "teacher");
-  const lessonsById = new Map(demoDb.lessons.map((lesson) => [lesson.id, lesson]));
-  const firstLesson = demoDb.lessons[0];
-  const cards = demoDb.executionCards.map((card) => {
-    const lesson = lessonsById.get(card.lessonId);
-    return {
-      id: card.id,
-      lessonId: card.lessonId,
-      subject: card.subject || lesson?.subject || "",
-      grade: gradeBandFromGrade(card.grade || lesson?.grade || ""),
-      title: card.title,
-      topic: card.topic || lesson?.topic || card.title,
-      goal: card.goal,
-      easyExplanation: card.easyExplanation,
-      standard: card.standardJson,
-      keywords: card.keywordsJson,
-      supportOptions: normalizeSupportOptions(card.supportOptionsJson),
-      review: card.reviewJson,
-      date: lesson?.lessonDate.replaceAll("-", ".") ?? card.createdAt.slice(0, 10).replaceAll("-", "."),
-      status: card.status === "published" ? "deployed" : "review",
-      steps: demoDb.executionSteps
-        .filter((step) => step.cardId === card.id)
-        .sort((a, b) => a.order - b.order)
-        .map((step) => ({
-          id: step.id,
-          title: step.stepText,
-          visualHint: step.visualHintJson,
-          checkQuestion: step.microQuizJson.question,
-          choices: step.microQuizJson.choices,
-          answer: step.microQuizJson.answer,
-          quizExplanation: step.microQuizJson.explanation,
-          helpSentence: step.helpSentence,
-          teacherTip: step.teacherTip,
-        })),
-    } satisfies ExecutionCard;
-  });
-
-  return {
-    schoolId: school?.id ?? "",
-    school: school?.schoolName ?? "학교 연결 전",
-    schoolCode: school?.schoolCode ?? "",
-    officeCode: school?.officeCode ?? "",
-    schoolAddress: school?.address ?? "",
-    schoolSource: school?.source ?? "unconfigured",
-    classroomId: classroom?.id ?? "",
-    className: classroom ? `${classroom.grade}학년 ${classroom.classNo}반` : "학급 설정 필요",
-    classGrade: classroom?.grade ?? "4",
-    classNo: classroom?.classNo ?? "1",
-    teacherId: teacher?.id ?? "teacher_local",
-    teacherName: teacher?.name ?? "교사 계정",
-    dateLabel: firstLesson?.lessonDate.replaceAll("-", ".") ?? normalizeLessonDateForInput(""),
-    lessonTopic: firstLesson?.topic ?? cards[0]?.title ?? "",
-    activeCardId: cards[0]?.id ?? "",
-    students: demoDb.students.map((student, index) => ({
-      id: student.id,
-      name: student.nickname,
-      avatar: ["👦🏻", "👧🏻", "👦🏽"][index % 3],
-      task: firstLesson?.topic ?? cards[0]?.title ?? "",
-      progress: 0,
-      blockedStep: "로그 대기",
-      status: "learning" as const,
-      profile: studentProfileLabel(student),
-      supportOptions: studentSupportOptions(student),
-    })),
-    cards,
+type ApiReport = {
+  report: {
+    summary: string;
+    difficultyTagsJson: string[];
+    aiRecommendationsJson: string[];
+    parentMemo: string;
+    createdAt: string;
   };
-}
+  summary: ApiTaskSummary;
+  perStep: Array<{
+    step: { id: string; order: number; stepText: string };
+    isCompleted: boolean;
+    confusedCount: number;
+    simplifyCount: number;
+    helpSentenceViewedCount?: number;
+    quizAnswered: boolean;
+    isCorrect: boolean;
+    timeSeconds: number;
+  }>;
+};
 
-const initialSnapshot: DemoSnapshot = buildInitialSnapshot();
+const PROFILE_PRESETS = [
+  {
+    label: "긴 문장 이해 어려움",
+    options: ["easy_language", "step_breakdown", "help_sentence"] satisfies string[],
+  },
+  {
+    label: "순서 기억 어려움",
+    options: ["step_breakdown", "visual_hint", "repeat_check"] satisfies string[],
+  },
+  {
+    label: "시각 단서 필요",
+    options: ["visual_hint", "step_breakdown", "life_example"] satisfies string[],
+  },
+  {
+    label: "반복 확인 필요",
+    options: ["repeat_check", "easy_language", "help_sentence"] satisfies string[],
+  },
+  {
+    label: "도움 요청 어려움",
+    options: ["help_sentence", "easy_language", "step_breakdown"] satisfies string[],
+  },
+];
+
+const DEFAULT_ASSETS = {
+  logo: "/assets/generated/logo-mark.png",
+  mascot: "/assets/generated/student-mascot.png",
+  robot: "/assets/generated/help-robot.png",
+};
 
 async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -466,175 +260,162 @@ async function requestJson<T>(url: string, options?: RequestInit): Promise<T> {
       ...(options?.headers ?? {}),
     },
   });
-
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : {};
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`${response.status} ${response.statusText}${body ? `: ${body.slice(0, 160)}` : ""}`);
+    const message =
+      typeof payload?.message === "string"
+        ? payload.message
+        : typeof payload?.error === "string"
+          ? payload.error
+          : typeof payload?.error?.message === "string"
+            ? payload.error.message
+            : `${response.status} ${response.statusText}`;
+    throw new Error(message);
   }
-
-  return response.json() as Promise<T>;
+  return payload as T;
 }
 
-function mapApiStep(step: ApiExecutionStep): LessonStep {
-  return {
-    id: step.id,
-    title: step.stepText,
-    visualHint: {
-      type: step.visualHintJson.type,
-      data: step.visualHintJson.data ?? (step.visualHintJson.labels ? { labels: step.visualHintJson.labels } : undefined),
-      assetUrl: step.visualHintJson.assetUrl,
-      alt: step.visualHintJson.alt,
-    },
-    checkQuestion: step.microQuizJson.question,
-    choices: step.microQuizJson.choices,
-    answer: step.microQuizJson.answer,
-    quizExplanation: step.microQuizJson.explanation,
-    helpSentence: step.helpSentence,
-    teacherTip: step.teacherTip,
-  };
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function mapApiCard(card: ApiExecutionCard, lesson: ApiLesson | undefined | null, steps: ApiExecutionStep[]): ExecutionCard {
-  const gradeLabel = card.grade ? (card.grade.startsWith("초") ? card.grade : `초${card.grade}`) : lesson?.grade ? `초${lesson.grade}` : "";
-  return {
-    id: card.id,
-    lessonId: card.lessonId,
-    subject: card.subject || lesson?.subject || "",
-    grade: gradeLabel,
-    title: card.title,
-    topic: card.topic || lesson?.topic || card.title,
-    goal: card.goal,
-    easyExplanation: card.easyExplanation,
-    standard: card.standardJson,
-    keywords: card.keywordsJson,
-    supportOptions: normalizeSupportOptions(card.supportOptionsJson),
-    review: card.reviewJson,
-    date: lesson?.lessonDate?.replaceAll("-", ".") ?? card.createdAt.slice(0, 10).replaceAll("-", "."),
-    status: card.status === "published" ? "deployed" : "review",
-    steps: steps.map(mapApiStep),
-  };
+function formatDate(date?: string) {
+  if (!date) return today().replaceAll("-", ".");
+  return date.slice(0, 10).replaceAll("-", ".");
 }
 
-async function loadTeacherSnapshot(preferredCardId?: string): Promise<DemoSnapshot> {
-  const [lessonResult, cardResult, context] = await Promise.all([
-    requestJson<{ lessons: ApiLesson[] }>("/api/lessons"),
-    requestJson<{ cards: ApiExecutionCard[] }>("/api/execution-cards"),
-    requestJson<ApiClassroomContext>("/api/classroom/context"),
-  ]);
-  const lessonsById = new Map(lessonResult.lessons.map((lesson) => [lesson.id, lesson]));
-  const cards = await Promise.all(
-    cardResult.cards.map(async (card) => {
-      const detail = await requestJson<{ card: ApiExecutionCard; steps: ApiExecutionStep[] }>(`/api/execution-cards/${encodeURIComponent(card.id)}`);
-      return mapApiCard(detail.card, lessonsById.get(card.lessonId), detail.steps);
-    }),
+function gradeBand(grade?: string | null) {
+  const value = (grade ?? "").replace("학년", "").trim();
+  if (!value) return "";
+  return value.startsWith("초") ? value : `초${value}`;
+}
+
+function sourceTypeLabel(sourceType?: string | null) {
+  if (sourceType === "official" || sourceType === "official_metadata") return "공식 메타데이터";
+  if (sourceType === "crawled") return "크롤링";
+  if (sourceType === "uploaded") return "업로드";
+  if (sourceType === "manual") return "수동";
+  return "데모 seed";
+}
+
+function sourceTypeClass(sourceType?: string | null) {
+  if (sourceType === "official" || sourceType === "official_metadata") return "is-official";
+  if (sourceType === "seed" || !sourceType) return "is-seed";
+  return "is-public";
+}
+
+function standardCode(standard: ApiStandardSearchResult) {
+  return standard.standardCode ?? standard.citations?.[0]?.standardId ?? standard.id;
+}
+
+function supportOptionsFromStudent(student?: ApiStudent | null) {
+  const options = student?.supportProfileJson?.supportOptions;
+  return Array.isArray(options)
+    ? normalizeSupportOptions(options.filter((item): item is string => typeof item === "string"))
+    : normalizeSupportOptions(["easy_language", "step_breakdown", "help_sentence"]);
+}
+
+function profileFromStudent(student?: ApiStudent | null) {
+  const profile = student?.supportProfileJson?.profile;
+  return typeof profile === "string" && profile.trim() ? profile : "지원 프로필 미설정";
+}
+
+function studentQuery(studentId?: string | null) {
+  return studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
+}
+
+function formatSeconds(seconds?: number) {
+  if (!seconds) return "0분";
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return minutes ? `${minutes}분 ${String(rest).padStart(2, "0")}초` : `${rest}초`;
+}
+
+function getStepItems(value?: Record<string, unknown> | null) {
+  const items = value?.items;
+  if (Array.isArray(items)) return items.filter((item): item is string => typeof item === "string");
+  const labels = value?.labels;
+  if (Array.isArray(labels)) return labels.filter((item): item is string => typeof item === "string");
+  return [];
+}
+
+function getHintText(value?: Record<string, unknown> | null) {
+  const text = value?.text ?? value?.description ?? value?.hint;
+  return typeof text === "string" ? text : "";
+}
+
+function TeacherNav({
+  view,
+  onMove,
+}: {
+  view: TeacherView;
+  onMove: (next: TeacherView) => void;
+}) {
+  const items: Array<{ id: TeacherView; label: string; icon: React.ComponentType<{ size?: number }> }> = [
+    { id: "dashboard", label: "교실 운영", icon: LayoutDashboard },
+    { id: "prep", label: "수업 준비", icon: ClipboardList },
+    { id: "cards", label: "실행카드", icon: Pencil },
+    { id: "reports", label: "학생 리포트", icon: BarChart3 },
+  ];
+  return (
+    <aside className="mvp-sidebar">
+      <div className="mvp-brand">
+        <img src={DEFAULT_ASSETS.logo} alt="" />
+        <strong>다음한걸음</strong>
+      </div>
+      <nav>
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              className={view === item.id ? "is-active" : ""}
+              onClick={() => onMove(item.id)}
+              type="button"
+            >
+              <Icon size={18} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <div className="mvp-sidebar-note">
+        <img src={DEFAULT_ASSETS.robot} alt="" />
+        <p>지금은 핵심 시연 흐름만 남겼습니다. 학생 지원 질문은 리포트에서 실제 로그 기반으로 확인합니다.</p>
+      </div>
+    </aside>
   );
-  const activeCardId = preferredCardId && cards.some((card) => card.id === preferredCardId)
-    ? preferredCardId
-    : cards[0]?.id ?? "";
-  const activeCard = cards.find((card) => card.id === activeCardId) ?? cards[0];
-  const primaryLesson = activeCard ? lessonsById.get(activeCard.lessonId) : lessonResult.lessons[0];
-  const classroom = context.classroom;
-  const school = context.school;
-  const students: StudentProgress[] = context.students.map((student, index) => {
-    const summary = context.summariesByStudentId?.[student.id];
-    const helpRequestCount = summary?.helpRequestCount ?? 0;
-    const progress = summary?.completionRate ?? 0;
-    return {
-      id: student.id,
-      name: student.nickname,
-      avatar: ["👤", "👥", "🙂", "😊"][index % 4],
-      task: activeCard?.title ?? "배포된 과제 없음",
-      progress,
-      blockedStep: helpRequestCount > 0 ? `도움 요청 ${helpRequestCount}회` : progress > 0 ? `${progress}% 완료` : "로그 대기",
-      status: activeCard ? (progress >= 100 ? "done" : helpRequestCount > 0 ? "blocked" : progress > 0 ? "learning" : "smooth") : "waiting",
-      profile: studentProfileLabel(student),
-      supportOptions: studentSupportOptions(student),
-    };
-  });
-
-  return {
-    ...initialSnapshot,
-    schoolId: school?.id ?? classroom?.schoolId ?? initialSnapshot.schoolId,
-    school: school?.schoolName ?? "학교 연결 전",
-    schoolCode: school?.schoolCode ?? "",
-    officeCode: school?.officeCode ?? "",
-    schoolAddress: school?.address ?? "",
-    schoolSource: school?.source ?? "unconfigured",
-    classroomId: classroom?.id ?? initialSnapshot.classroomId,
-    className: classroom ? `${classroom.grade}학년 ${classroom.classNo}반` : "학급 설정 필요",
-    classGrade: classroom?.grade ?? initialSnapshot.classGrade,
-    classNo: classroom?.classNo ?? initialSnapshot.classNo,
-    teacherId: context.teacher?.id ?? initialSnapshot.teacherId,
-    teacherName: context.teacher?.name ?? initialSnapshot.teacherName,
-    lessonTopic: primaryLesson?.topic ?? initialSnapshot.lessonTopic,
-    students,
-    cards,
-    activeCardId,
-  };
 }
 
-function statusLabel(status: StudentProgress["status"]) {
-  if (status === "waiting") return "대기";
-  if (status === "blocked") return "막힘";
-  if (status === "learning") return "학습 중";
-  if (status === "smooth") return "순조로움";
-  return "완료";
-}
-
-function cardStatusLabel(status: ExecutionCard["status"]) {
-  if (status === "draft") return "임시 저장";
-  if (status === "review") return "검토 중";
-  return "배포됨";
-}
-
-function useDemoSnapshot(preferredCardId?: string) {
-  const [snapshot, setSnapshot] = useState(initialSnapshot);
-  const [requestState, setRequestState] = useState<RequestState>("idle");
-  const [error, setError] = useState("");
-  const [hasLoaded, setHasLoaded] = useState(false);
-
-  async function refreshSnapshot(nextPreferredCardId = preferredCardId) {
-    setRequestState("loading");
-    const data = await loadTeacherSnapshot(nextPreferredCardId);
-    setSnapshot(data);
-    setError("");
-    setHasLoaded(true);
-    setRequestState("idle");
-    return data;
-  }
-
-  useEffect(() => {
-    let alive = true;
-    setRequestState("loading");
-    loadTeacherSnapshot(preferredCardId)
-      .then((data) => {
-        if (!alive) return;
-        setSnapshot(data);
-        setError("");
-        setHasLoaded(true);
-        setRequestState("idle");
-      })
-      .catch((reason: Error) => {
-        if (!alive) return;
-        setError(`초기 데이터 요청 실패: ${reason.message}`);
-        setRequestState("error");
-      });
-    return () => {
-      alive = false;
-    };
-  }, [preferredCardId]);
-
-  return { snapshot, setSnapshot, requestState, error, setError, setRequestState, hasLoaded, refreshSnapshot };
+function EmptyState({
+  title,
+  body,
+  action,
+}: {
+  title: string;
+  body: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <section className="mvp-empty">
+      <img src={DEFAULT_ASSETS.robot} alt="" />
+      <div>
+        <h3>{title}</h3>
+        <p>{body}</p>
+        {action}
+      </div>
+    </section>
+  );
 }
 
 function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   if (!message) return null;
   return (
-    <div className="dhg-alert" role="alert">
-      <strong>API 오류</strong>
+    <div className="mvp-error" role="alert">
       <span>{message}</span>
       {onRetry ? (
-        <button type="button" onClick={onRetry}>
+        <button onClick={onRetry} type="button">
           다시 시도
         </button>
       ) : null}
@@ -642,616 +423,227 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => vo
   );
 }
 
-function LoadingStrip({ active }: { active: boolean }) {
-  return active ? (
-    <div className="dhg-loading" aria-live="polite">
-      <span />
-      데이터를 불러오는 중입니다.
-    </div>
-  ) : null;
-}
-
-function Brand() {
+function TopBar({
+  context,
+  state,
+  onRefresh,
+}: {
+  context: ApiClassroomContext | null;
+  state: LoadState;
+  onRefresh: () => void;
+}) {
+  const school = context?.school;
+  const classroom = context?.classroom;
   return (
-    <div className="dhg-brand" aria-label="다음한걸음">
-      <span className="dhg-footmark">
-        <Image src="/assets/generated/logo-mark.png" alt="" width={38} height={38} priority />
-      </span>
-      <strong>다음한걸음</strong>
-    </div>
-  );
-}
-
-function TeacherHeader({ snapshot, onOpenSetup }: { snapshot: DemoSnapshot; onOpenSetup: () => void }) {
-  return (
-    <header className="dhg-topbar">
-      <button className="dhg-select" type="button" aria-label="학교 선택" onClick={onOpenSetup}>
-        <School size={18} aria-hidden="true" />
-        <span>{snapshot.school}</span>
-        <ChevronDown size={16} aria-hidden="true" />
-      </button>
-      <button className="dhg-select" type="button" aria-label="학급 선택" onClick={onOpenSetup}>
-        <Users size={18} aria-hidden="true" />
-        <span>{snapshot.className}</span>
-        <ChevronDown size={16} aria-hidden="true" />
-      </button>
-      <button className="dhg-date" type="button" aria-label="날짜 확인 및 설정" onClick={onOpenSetup}>
-        <ChevronLeft size={18} aria-hidden="true" />
+    <header className="mvp-topbar">
+      <div>
+        <strong>{school?.schoolCode ? school.schoolName : "학교 연결 필요"}</strong>
         <span>
-          <CalendarDays size={18} aria-hidden="true" />
-          {snapshot.dateLabel}
+          {classroom ? `${classroom.grade}학년 ${classroom.classNo}반` : "학급 설정 필요"}
+          {school?.source ? ` · ${school.source}` : ""}
         </span>
-        <ChevronRight size={18} aria-hidden="true" />
-      </button>
-      <label className="dhg-search">
-        <Search size={18} aria-hidden="true" />
-        <input placeholder="학생 또는 과제 검색" />
-      </label>
-      <button className="dhg-icon-button" type="button" aria-label="설정 알림" onClick={onOpenSetup}>
-        <Bell size={21} aria-hidden="true" />
-      </button>
-      <button className="dhg-profile" type="button" onClick={onOpenSetup}>
-        <span>👩🏻</span>
-        <span>{snapshot.teacherName}</span>
-        <ChevronDown size={16} aria-hidden="true" />
+      </div>
+      <button className="mvp-icon-button" onClick={onRefresh} type="button" aria-label="새로고침">
+        {state === "loading" ? <Loader2 size={18} className="mvp-spin" /> : <RefreshCw size={18} />}
       </button>
     </header>
   );
 }
 
-function TeacherSidebar({
-  activeView,
-  setActiveView,
-  snapshot,
-}: {
-  activeView: TeacherView;
-  setActiveView: (view: TeacherView) => void;
-  snapshot: DemoSnapshot;
-}) {
-  const items: Array<{ id: TeacherView; label: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number }> }> = [
-    { id: "dashboard", label: "대시보드", icon: LayoutDashboard },
-    { id: "prep", label: "수업 준비", icon: GraduationCap },
-    { id: "cards", label: "실행카드", icon: ClipboardList },
-    { id: "reports", label: "학생 리포트", icon: BarChart3 },
-  ];
-
-  return (
-    <aside className="dhg-sidebar">
-      <Brand />
-      <nav aria-label="선생님 메뉴">
-        {items.map((item) => {
-          const Icon = item.icon;
-          return (
-          <button
-            key={item.id}
-            type="button"
-            className={activeView === item.id ? "is-active" : ""}
-            onClick={() => setActiveView(item.id)}
-          >
-            <span>
-              <Icon size={21} strokeWidth={2.4} />
-            </span>
-            {item.label}
-          </button>
-          );
-        })}
-      </nav>
-      <TeacherSupportAssistant snapshot={snapshot} setActiveView={setActiveView} />
-    </aside>
-  );
-}
-
-function TeacherSupportAssistant({
-  snapshot,
-  setActiveView,
-  placement = "sidebar",
-}: {
-  snapshot: DemoSnapshot;
-  setActiveView: (view: TeacherView) => void;
-  placement?: "sidebar" | "panel";
-}) {
-  const activeCard = snapshot.cards.find((card) => card.id === snapshot.activeCardId) ?? snapshot.cards[0];
-  const [selectedStudentId, setSelectedStudentId] = useState(snapshot.students[0]?.id ?? "");
-  const selectedStudent = snapshot.students.find((student) => student.id === selectedStudentId) ?? snapshot.students[0];
-  const [question, setQuestion] = useState("이 학생이 지금 막힌 단계에서 바로 할 수 있는 한 가지 행동은 무엇일까요?");
-  const [assistantResult, setAssistantResult] = useState<ApiTeacherAssistantResult | null>(null);
-  const [assistantError, setAssistantError] = useState("");
-  const [isAsking, setIsAsking] = useState(false);
-
-  useEffect(() => {
-    if (!selectedStudentId && snapshot.students[0]?.id) {
-      setSelectedStudentId(snapshot.students[0].id);
-    }
-    if (selectedStudentId && !snapshot.students.some((student) => student.id === selectedStudentId)) {
-      setSelectedStudentId(snapshot.students[0]?.id ?? "");
-    }
-  }, [selectedStudentId, snapshot.students]);
-
-  async function askAssistant() {
-    if (!selectedStudent?.id) {
-      setAssistantError("학생을 먼저 등록해 주세요.");
-      return;
-    }
-    if (!question.trim()) {
-      setAssistantError("선생님이 궁금한 점을 입력해 주세요.");
-      return;
-    }
-    setIsAsking(true);
-    setAssistantError("");
-    try {
-      const result = await requestJson<ApiTeacherAssistantResult>("/api/teacher/assistant", {
-        method: "POST",
-        body: JSON.stringify({
-          studentId: selectedStudent.id,
-          cardId: activeCard?.id,
-          question: question.trim(),
-        }),
-      });
-      setAssistantResult(result);
-    } catch (reason) {
-      setAssistantResult(null);
-      setAssistantError(`학생 지원 답변 생성 실패: ${(reason as Error).message}`);
-    } finally {
-      setIsAsking(false);
-    }
-  }
-
-  return (
-    <div className={`${placement === "sidebar" ? "dhg-chat-card" : "dhg-panel dhg-dashboard-assistant"} dhg-support-assistant`}>
-      <div className="dhg-assistant-head">
-        <Image src="/assets/generated/help-robot.png" alt="" width={58} height={58} />
-        <div>
-          <p>학생 지원 챗봇</p>
-          <span>학생 프로필과 수행 로그를 보고 바로 물어보세요.</span>
-        </div>
-      </div>
-
-      {snapshot.students.length ? (
-        <>
-          <label className="dhg-assistant-field">
-            학생
-            <select value={selectedStudent?.id ?? ""} onChange={(event) => setSelectedStudentId(event.target.value)}>
-              {snapshot.students.map((student) => (
-                <option key={student.id} value={student.id}>{student.name}</option>
-              ))}
-            </select>
-          </label>
-          <div className="dhg-assistant-student">
-            <strong>{selectedStudent?.profile}</strong>
-            <small>{selectedStudent?.task}</small>
-            <em>{selectedStudent?.blockedStep}</em>
-            <div>
-              {supportOptionLabels(selectedStudent?.supportOptions).slice(0, 3).map((label) => (
-                <span key={label}>{label}</span>
-              ))}
-            </div>
-          </div>
-          <label className="dhg-assistant-field">
-            질문
-            <textarea value={question} onChange={(event) => setQuestion(event.target.value)} rows={3} />
-          </label>
-          <button type="button" disabled={isAsking} onClick={askAssistant}>
-            {isAsking ? "답변 생성 중..." : "프로필로 질문하기"}
-          </button>
-          {assistantError ? <strong className="dhg-assistant-error">{assistantError}</strong> : null}
-          {assistantResult ? (
-            <div className="dhg-assistant-answer">
-              <strong>추천 지원</strong>
-              <p>{assistantResult.answer.answer}</p>
-              <ul>
-                {assistantResult.answer.nextActions.map((action) => (
-                  <li key={action}>{action}</li>
-                ))}
-              </ul>
-              <small>학생에게 물어볼 말: {assistantResult.answer.questionToAskStudent}</small>
-            </div>
-          ) : null}
-          <div className="dhg-assistant-actions">
-            <button type="button" onClick={() => setActiveView("reports")}>리포트 보기</button>
-            <button
-              type="button"
-              disabled={!activeCard?.id || !selectedStudent?.id}
-              onClick={() => activeCard?.id && selectedStudent?.id && window.open(withStudentQuery(studentRoute("task", activeCard.id), selectedStudent.id), "_blank", "noopener,noreferrer")}
-            >
-              학생 화면
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <span>학생을 등록하면 지원 프로필과 과제 로그를 바탕으로 질문할 수 있습니다.</span>
-          <button type="button" onClick={() => setActiveView("dashboard")}>학생 등록하기</button>
-        </>
-      )}
-    </div>
-  );
-}
-
 function TeacherSetupPanel({
-  snapshot,
-  refreshSnapshot,
+  context,
+  onRefresh,
+  onError,
 }: {
-  snapshot: DemoSnapshot;
-  refreshSnapshot: () => Promise<DemoSnapshot>;
+  context: ApiClassroomContext | null;
+  onRefresh: () => Promise<void>;
+  onError: (message: string) => void;
 }) {
-  const [schoolQuery, setSchoolQuery] = useState("");
-  const [schoolRows, setSchoolRows] = useState<ApiNeisSchool[]>([]);
-  const [setupMessage, setSetupMessage] = useState("");
-  const [setupError, setSetupError] = useState("");
-  const [isWorking, setIsWorking] = useState(false);
-  const [grade, setGrade] = useState(snapshot.classGrade || "4");
-  const [classNo, setClassNo] = useState(snapshot.classNo || "1");
+  const [query, setQuery] = useState("");
+  const [grade, setGrade] = useState(context?.classroom?.grade ?? "4");
+  const [classNo, setClassNo] = useState(context?.classroom?.classNo ?? "1");
+  const [schoolResults, setSchoolResults] = useState<ApiNeisSchool[]>([]);
   const [studentName, setStudentName] = useState("");
-  const [studentProfile, setStudentProfile] = useState("긴 문장 이해 어려움");
+  const [profile, setProfile] = useState(PROFILE_PRESETS[0].label);
+  const [busy, setBusy] = useState("");
 
   useEffect(() => {
-    setGrade(snapshot.classGrade || "4");
-    setClassNo(snapshot.classNo || "1");
-  }, [snapshot.classGrade, snapshot.classNo]);
+    setGrade(context?.classroom?.grade ?? "4");
+    setClassNo(context?.classroom?.classNo ?? "1");
+  }, [context?.classroom?.grade, context?.classroom?.classNo]);
 
-  const profilePresets: Record<string, SupportOptionKey[]> = {
-    "긴 문장 이해 어려움": ["easy_language", "help_sentence"],
-    "순서 기억 어려움": ["step_breakdown", "repeat_check"],
-    "시각 단서 필요": ["visual_hint", "life_example"],
-    "반복 확인 필요": ["repeat_check", "easy_language"],
-    "도움 요청 어려움": ["help_sentence", "step_breakdown"],
-  };
+  const profilePreset = PROFILE_PRESETS.find((item) => item.label === profile) ?? PROFILE_PRESETS[0];
+  const connected = Boolean(context?.school?.schoolCode);
 
-  async function searchSchool() {
-    if (!schoolQuery.trim()) {
-      setSetupError("학교명을 입력해 주세요.");
+  async function searchSchools() {
+    if (query.trim().length < 2) {
+      onError("학교명은 두 글자 이상 입력해 주세요.");
       return;
     }
-    setIsWorking(true);
-    setSetupError("");
-    setSetupMessage("");
+    setBusy("school-search");
     try {
       const result = await requestJson<{ rows: ApiNeisSchool[] }>(
-        `/api/neis/schools/search?keyword=${encodeURIComponent(schoolQuery.trim())}&schoolKind=${encodeURIComponent("초등학교")}&pageSize=8`,
+        `/api/neis/schools/search?keyword=${encodeURIComponent(query.trim())}&pageSize=8`,
       );
-      setSchoolRows(result.rows ?? []);
-      setSetupMessage(result.rows?.length ? "NEIS 학교 검색 결과를 확인해 주세요." : "검색 결과가 없습니다. 학교명을 다시 확인해 주세요.");
-    } catch (reason) {
-      setSchoolRows([]);
-      setSetupError(`NEIS 학교 검색 실패: ${(reason as Error).message}`);
+      setSchoolResults(result.rows ?? []);
+      onError("");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "학교 검색에 실패했습니다.");
     } finally {
-      setIsWorking(false);
+      setBusy("");
     }
   }
 
-  async function connectSchool(row: ApiNeisSchool) {
-    setIsWorking(true);
-    setSetupError("");
+  async function connectSchool(school: ApiNeisSchool) {
+    setBusy(school.SD_SCHUL_CODE);
     try {
-      await requestJson<ApiClassroomContext>("/api/classroom/context", {
+      await requestJson("/api/classroom/context", {
         method: "PATCH",
         body: JSON.stringify({
           school: {
-            schoolName: row.SCHUL_NM,
-            schoolCode: row.SD_SCHUL_CODE,
-            officeCode: row.ATPT_OFCDC_SC_CODE,
-            address: row.ORG_RDNMA ?? row.LCTN_SC_NM ?? "",
-            schoolLevel: row.SCHUL_KND_SC_NM,
+            schoolName: school.SCHUL_NM,
+            schoolCode: school.SD_SCHUL_CODE,
+            officeCode: school.ATPT_OFCDC_SC_CODE,
+            address: school.ORG_RDNMA ?? "",
+            schoolLevel: school.SCHUL_KND_SC_NM,
             source: "NEIS",
           },
           classroom: { grade, classNo },
         }),
       });
-      await refreshSnapshot();
-      setSchoolRows([]);
-      setSetupMessage(`${row.SCHUL_NM} ${grade}학년 ${classNo}반으로 연결했습니다.`);
-    } catch (reason) {
-      setSetupError(`학교/학급 저장 실패: ${(reason as Error).message}`);
+      await onRefresh();
+      onError("");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "학교/학급 저장에 실패했습니다.");
     } finally {
-      setIsWorking(false);
+      setBusy("");
     }
   }
 
-  async function saveClassroomOnly() {
-    setIsWorking(true);
-    setSetupError("");
+  async function saveClassOnly() {
+    setBusy("class");
     try {
-      await requestJson<ApiClassroomContext>("/api/classroom/context", {
+      await requestJson("/api/classroom/context", {
         method: "PATCH",
         body: JSON.stringify({ classroom: { grade, classNo } }),
       });
-      await refreshSnapshot();
-      setSetupMessage(`${grade}학년 ${classNo}반으로 학급을 저장했습니다.`);
-    } catch (reason) {
-      setSetupError(`학급 저장 실패: ${(reason as Error).message}`);
+      await onRefresh();
+      onError("");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "학급 저장에 실패했습니다.");
     } finally {
-      setIsWorking(false);
+      setBusy("");
     }
   }
 
-  async function addStudent() {
+  async function registerStudent() {
     if (!studentName.trim()) {
-      setSetupError("등록할 학생 이름 또는 별칭을 입력해 주세요.");
+      onError("학생 이름 또는 별칭을 입력해 주세요.");
       return;
     }
-    setIsWorking(true);
-    setSetupError("");
+    setBusy("student");
     try {
-      await requestJson<{ student: ApiStudent }>("/api/students", {
+      await requestJson("/api/students", {
         method: "POST",
         body: JSON.stringify({
           nickname: studentName.trim(),
-          classroomId: snapshot.classroomId,
-          profile: studentProfile,
-          supportOptions: profilePresets[studentProfile],
+          classroomId: context?.classroom?.id,
+          profile,
+          supportOptions: profilePreset.options,
         }),
       });
       setStudentName("");
-      await refreshSnapshot();
-      setSetupMessage(`${studentName.trim()} 학생을 등록했습니다.`);
-    } catch (reason) {
-      setSetupError(`학생 등록 실패: ${(reason as Error).message}`);
+      await onRefresh();
+      onError("");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "학생 등록에 실패했습니다.");
     } finally {
-      setIsWorking(false);
+      setBusy("");
     }
   }
 
-  const schoolConnected = Boolean(snapshot.schoolCode && snapshot.officeCode && snapshot.schoolSource === "NEIS");
-
   return (
-    <section className="dhg-panel dhg-setup-panel">
-      <div className="dhg-panel-head">
+    <section className="mvp-panel mvp-setup">
+      <div className="mvp-panel-head">
         <div>
-          <h2>교실 운영 설정</h2>
-          <p>학교, 학급, 학생 지원 프로필을 먼저 맞춰두면 실행카드와 리포트가 같은 데이터로 이어집니다.</p>
+          <p className="mvp-eyebrow">시연 시작 설정</p>
+          <h2>먼저 학교와 학생을 실제 데이터로 연결하세요</h2>
         </div>
-        <span className={schoolConnected ? "dhg-setup-ok" : "dhg-setup-warn"}>
-          {schoolConnected ? "NEIS 학교 연결됨" : "학교 연결 필요"}
-        </span>
+        <span className={connected ? "mvp-status is-good" : "mvp-status"}>{connected ? "NEIS 학교 연결됨" : "연결 전"}</span>
       </div>
-      <div className="dhg-setup-grid">
+      <div className="mvp-setup-grid">
         <div>
-          <strong>학교/학급</strong>
-          <p>
-            현재: {snapshot.school} · {snapshot.className}
-            {snapshot.schoolSource === "NEIS" ? " · NEIS" : " · 직접 설정"}
+          <h3>1. 학교/학급</h3>
+          <p className="mvp-muted">
+            현재: {context?.school?.schoolCode ? context.school.schoolName : "학교 연결 전"} ·{" "}
+            {context?.classroom ? `${context.classroom.grade}학년 ${context.classroom.classNo}반` : "학급 설정 전"}
           </p>
-          <div className="dhg-inline-form dhg-school-form">
-            <input value={schoolQuery} onChange={(event) => setSchoolQuery(event.target.value)} placeholder="학교명 검색" />
-            <select value={grade} onChange={(event) => setGrade(event.target.value)}>
-              <option value="1">1학년</option>
-              <option value="2">2학년</option>
-              <option value="3">3학년</option>
-              <option value="4">4학년</option>
-              <option value="5">5학년</option>
-              <option value="6">6학년</option>
-            </select>
-            <select value={classNo} onChange={(event) => setClassNo(event.target.value)}>
-              {["1", "2", "3", "4", "5", "6"].map((value) => (
-                <option key={value} value={value}>{value}반</option>
+          <div className="mvp-inline-form">
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="학교명 검색" />
+            <select value={grade} onChange={(event) => setGrade(event.target.value)} aria-label="학년">
+              {["1", "2", "3", "4", "5", "6"].map((item) => (
+                <option key={item} value={item}>
+                  {item}학년
+                </option>
               ))}
             </select>
-            <button type="button" disabled={isWorking} onClick={searchSchool}>검색</button>
-            <button type="button" disabled={isWorking} onClick={saveClassroomOnly}>학급만 저장</button>
-          </div>
-          {schoolRows.length ? (
-            <div className="dhg-school-results">
-              {schoolRows.map((row) => (
-                <button key={`${row.ATPT_OFCDC_SC_CODE}-${row.SD_SCHUL_CODE}`} type="button" onClick={() => connectSchool(row)}>
-                  <strong>{row.SCHUL_NM}</strong>
-                  <small>{row.ATPT_OFCDC_SC_NM} · {row.ORG_RDNMA ?? row.LCTN_SC_NM ?? "주소 정보 없음"}</small>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        <div>
-          <strong>학생 명단 및 지원 프로필</strong>
-          <p>현재 등록 학생 {snapshot.students.length}명. 학생별 지원 프로필은 학생 화면, 챗봇, 리포트에 함께 반영됩니다.</p>
-          <div className="dhg-inline-form dhg-student-form">
-            <input value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="학생 이름 또는 별칭" />
-            <select value={studentProfile} onChange={(event) => setStudentProfile(event.target.value)}>
-              {Object.keys(profilePresets).map((profile) => (
-                <option key={profile}>{profile}</option>
+            <select value={classNo} onChange={(event) => setClassNo(event.target.value)} aria-label="반">
+              {["1", "2", "3", "4", "5", "6"].map((item) => (
+                <option key={item} value={item}>
+                  {item}반
+                </option>
               ))}
             </select>
-            <button type="button" disabled={isWorking} onClick={addStudent}>학생 등록</button>
-          </div>
-          <div className="dhg-registered-students">
-            {snapshot.students.length ? snapshot.students.map((student) => (
-              <span key={student.id}>{student.name} · {student.profile}</span>
-            )) : <small>아직 등록된 학생이 없습니다.</small>}
-          </div>
-        </div>
-      </div>
-      {setupMessage ? <p className="dhg-setup-message">{setupMessage}</p> : null}
-      {setupError ? <p className="dhg-setup-error">{setupError}</p> : null}
-    </section>
-  );
-}
-
-function TeacherDashboard({
-  snapshot,
-  setActiveView,
-  refreshSnapshot,
-}: {
-  snapshot: DemoSnapshot;
-  setActiveView: (view: TeacherView) => void;
-  refreshSnapshot: () => Promise<DemoSnapshot>;
-}) {
-  const blockedCount = snapshot.students.filter((student) => student.status === "blocked").length;
-  const todayLessonCount = snapshot.cards.length;
-  const publishedTaskCount = snapshot.cards.filter((card) => card.status === "deployed").length;
-  const activeCard = snapshot.cards.find((card) => card.id === snapshot.activeCardId) ?? snapshot.cards[0];
-  const reportCount = activeCard ? snapshot.students.filter((student) => student.progress > 0 || student.status === "blocked").length : 0;
-  const blockedStudent = snapshot.students.find((student) => student.status === "blocked") ?? snapshot.students[0];
-  const schoolConnected = Boolean(snapshot.schoolCode && snapshot.officeCode && snapshot.schoolSource === "NEIS");
-  const hasStudents = snapshot.students.length > 0;
-  const hasPublishedCard = snapshot.cards.some((card) => card.status === "deployed");
-  const hasReportLogs = reportCount > 0;
-  const flowSteps = [
-    { label: "학교 연결", done: schoolConnected, target: "dashboard" as TeacherView },
-    { label: "학생 등록", done: hasStudents, target: "dashboard" as TeacherView },
-    { label: "수업 준비", done: snapshot.cards.length > 0, target: "prep" as TeacherView },
-    { label: "학생 배포", done: hasPublishedCard, target: "cards" as TeacherView },
-    { label: "리포트 확인", done: hasReportLogs, target: "reports" as TeacherView },
-  ];
-  const timetableRows = snapshot.cards.slice(0, 3).map((card, index) => [
-    `${index + 1}교시`,
-    card.subject,
-    card.status === "deployed" ? "진행 예정" : card.status === "review" ? "검토 중" : "준비 중",
-    `${String(9 + index).padStart(2, "0")}:00 ~ ${String(9 + index).padStart(2, "0")}:40`,
-  ]);
-
-  return (
-    <section className="dhg-teacher-page">
-      <div className="dhg-page-title">
-        <h1>오늘의 수업 준비</h1>
-        <p>오늘도 아이들의 성장을 응원합니다. 차분하게 한 걸음씩 준비해 보세요.</p>
-      </div>
-
-      <TeacherSetupPanel snapshot={snapshot} refreshSnapshot={refreshSnapshot} />
-
-      <section className="dhg-flow-panel" aria-label="수업 운영 흐름">
-        <div>
-          <strong>오늘 수업 운영 흐름</strong>
-          <p>학교와 학생을 설정하고, 수업 준비에서 만든 실행카드를 학생 수행과 리포트까지 이어서 관리합니다.</p>
-        </div>
-        <ol>
-          {flowSteps.map((step, index) => (
-            <li key={step.label} className={step.done ? "is-done" : ""}>
-              <button type="button" onClick={() => setActiveView(step.target)}>
-                <span>{step.done ? "✓" : index + 1}</span>
-                {step.label}
-              </button>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <div className="dhg-stat-grid">
-        {[
-          ["▣", "오늘 수업", `${todayLessonCount}개`, "시간표를 확인해 보세요", "prep"],
-          ["✓", "실행 중 과제", `${publishedTaskCount}개`, "학생 과제 현황 보기", "cards"],
-          ["♙", "도움이 필요한 학생", `${blockedCount}명`, "지원이 필요한 학생 보기", "reports"],
-          ["▤", "이번 주 리포트", `${reportCount}개`, "리포트 확인하기", "reports"],
-        ].map(([icon, label, value, hint, target]) => (
-          <button key={label} className="dhg-stat-card" type="button" onClick={() => setActiveView(target as TeacherView)}>
-            <span>{icon}</span>
-            <div>
-              <p>{label}</p>
-              <strong>{value}</strong>
-              <small>{hint}</small>
-            </div>
-            <b>›</b>
-          </button>
-        ))}
-      </div>
-
-      <div className="dhg-dashboard-grid">
-        <div className="dhg-panel">
-          <div className="dhg-panel-head">
-            <h2>오늘 시간표</h2>
-            <button type="button" onClick={() => setActiveView("prep")}>
-              전체 시간표 보기 ›
+            <button className="mvp-secondary" onClick={() => void searchSchools()} type="button">
+              {busy === "school-search" ? <Loader2 size={16} className="mvp-spin" /> : <Search size={16} />}
+              검색
+            </button>
+            <button className="mvp-secondary" onClick={() => void saveClassOnly()} type="button">
+              학급 저장
             </button>
           </div>
-          <div className="dhg-timetable">
-            {timetableRows.length ? timetableRows.map((row) => (
-              <div key={row[0]}>
-                <span>{row[0]}</span>
-                <strong>{row[1]}</strong>
-                <em>{row[2]}</em>
-                <time>{row[3]}</time>
-              </div>
-            )) : (
-              <div>
-                <span>-</span>
-                <strong>아직 준비된 수업 없음</strong>
-                <em>수업 준비에서 생성</em>
-                <time>대기</time>
-              </div>
+          <div className="mvp-school-results">
+            {schoolResults.length === 0 ? (
+              <p>학교명을 검색하면 NEIS 결과가 여기에 표시됩니다.</p>
+            ) : (
+              schoolResults.map((school) => (
+                <button key={`${school.ATPT_OFCDC_SC_CODE}-${school.SD_SCHUL_CODE}`} onClick={() => void connectSchool(school)} type="button">
+                  <strong>{school.SCHUL_NM}</strong>
+                  <span>{school.ORG_RDNMA ?? school.ATPT_OFCDC_SC_NM}</span>
+                  {busy === school.SD_SCHUL_CODE ? <Loader2 size={15} className="mvp-spin" /> : <ChevronRight size={16} />}
+                </button>
+              ))
             )}
           </div>
         </div>
 
-        <div className="dhg-panel dhg-next-lesson">
-          <div className="dhg-panel-head">
-            <h2>다음 수업 입력</h2>
-          </div>
-          <p className="dhg-panel-copy">
-            수업 준비 화면에서 과목, 주제, 성취기준, 과제 지시문, 학생 지원 옵션을 입력하면 실행카드가 생성됩니다.
-          </p>
-          <button className="dhg-primary" type="button" onClick={() => setActiveView("prep")}>
-            수업 준비로 이동
-          </button>
-          <div className="dhg-mini-preview" aria-label="실행카드 미리보기">
-            <span>{activeCard?.subject ?? "과목"} · {activeCard?.grade ?? "학년"}</span>
-            <strong>{snapshot.lessonTopic}</strong>
-            <small>{activeCard?.topic ?? "수업 주제를 입력하세요"}</small>
-          </div>
-        </div>
-
-        <div className="dhg-panel">
-          <div className="dhg-panel-head">
-            <h2>학생 진행 현황</h2>
-            <button type="button" onClick={() => setActiveView("reports")}>
-              전체 보기
+        <div>
+          <h3>2. 학생 1명 등록</h3>
+          <p className="mvp-muted">학생 프로필은 실행카드 문장 길이, 시각 단서, 도움 문장 노출 방식에 반영됩니다.</p>
+          <div className="mvp-inline-form">
+            <input value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="학생 이름 또는 별칭" />
+            <select value={profile} onChange={(event) => setProfile(event.target.value)} aria-label="지원 프로필">
+              {PROFILE_PRESETS.map((item) => (
+                <option key={item.label} value={item.label}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+            <button className="mvp-primary" onClick={() => void registerStudent()} type="button">
+              {busy === "student" ? <Loader2 size={16} className="mvp-spin" /> : <UserPlus size={16} />}
+              학생 등록
             </button>
           </div>
-          <div className="dhg-progress-table">
-            {snapshot.students.length ? snapshot.students.map((student) => (
-              <button key={student.id} type="button">
-                <span>{student.avatar}</span>
-                <strong>{student.name}</strong>
-                <small>{student.task}</small>
-                <meter min="0" max="100" value={student.progress} />
-                <em className={`tone-${student.status}`}>{statusLabel(student.status)}</em>
-              </button>
-            )) : <p className="dhg-muted-empty">등록된 학생이 없습니다. 위 설정 영역에서 학생을 먼저 등록해 주세요.</p>}
-          </div>
-        </div>
-
-        <TeacherSupportAssistant snapshot={snapshot} setActiveView={setActiveView} placement="panel" />
-
-        <div className="dhg-panel dhg-ai-panel">
-          <div className="dhg-panel-head">
-            <h2>AI 추천</h2>
-            <button type="button" onClick={() => setActiveView("reports")}>
-              리포트에서 보기 ›
-            </button>
-          </div>
-          {(activeCard ? [
-            ["개념 다시 보기", `${activeCard.title}에서 어려웠던 핵심 개념을 짧게 다시 확인해요.`, "보기"],
-            ["단계별 연습 제공", `${blockedStudent?.blockedStep ?? "막힌 단계"}에서 멈춘 학생에게 맞춤 연습을 추천해요.`, "문제 보기"],
-            ["짧은 피드백 보내기", `${blockedStudent?.name ?? "학생"}에게 격려와 힌트를 담은 피드백을 보내보세요.`, "보내기"],
-          ] : [
-            ["수업 준비 시작", "아직 배포된 과제가 없습니다. 먼저 수업 준비에서 실행카드를 만들고 학생에게 배포해 주세요.", "만들기"],
-          ]).map(([title, body, action]) => (
-            <article key={title} className="dhg-reco-row">
-              <span>✦</span>
-              <div>
-                <strong>{title}</strong>
-                <p>{body}</p>
-              </div>
-              <button type="button" onClick={() => setActiveView(action === "보내기" ? "reports" : "prep")}>
-                {action}
-              </button>
-            </article>
-          ))}
-        </div>
-
-        <div className="dhg-panel dhg-recent-cards">
-          <div className="dhg-panel-head">
-            <h2>최근 생성한 실행카드</h2>
-            <button type="button" onClick={() => setActiveView("cards")}>
-              전체 보기
-            </button>
-          </div>
-          <div>
-            {snapshot.cards.length ? snapshot.cards.map((card) => (
-              <button key={card.id} type="button" onClick={() => setActiveView("cards")}>
-                <span>{card.subject}</span>
-                <strong>{card.title}</strong>
-                <small>{card.date}</small>
-                <em>{cardStatusLabel(card.status)}</em>
-              </button>
-            )) : <p className="dhg-muted-empty">아직 생성된 실행카드가 없습니다.</p>}
+          <div className="mvp-student-chips">
+            {context?.students.length ? (
+              context.students.map((student) => (
+                <span key={student.id}>
+                  {student.nickname} · {profileFromStudent(student)}
+                </span>
+              ))
+            ) : (
+              <p>등록된 학생이 없습니다.</p>
+            )}
           </div>
         </div>
       </div>
@@ -1259,709 +651,905 @@ function TeacherDashboard({
   );
 }
 
-function TeacherPrep({
-  snapshot,
-  onGenerate,
-  isSaving,
+function FlowStrip({
+  context,
+  bundles,
 }: {
-  snapshot: DemoSnapshot;
-  onGenerate: (payload: LessonPrepPayload) => void;
-  isSaving: boolean;
+  context: ApiClassroomContext | null;
+  bundles: CardBundle[];
 }) {
-  const [topic, setTopic] = useState(snapshot.lessonTopic);
-  const [subject, setSubject] = useState(snapshot.cards[0]?.subject || "수학");
-  const [grade, setGrade] = useState(snapshot.cards[0]?.grade.replace(/^초/, "") || "4");
-  const [classNo, setClassNo] = useState(snapshot.className.match(/(\d+)반/)?.[1] ?? "2");
-  const [lessonDate, setLessonDate] = useState(normalizeLessonDateForInput(snapshot.dateLabel));
+  const hasSchool = Boolean(context?.school?.schoolCode);
+  const hasStudent = Boolean(context?.students.length);
+  const hasDraft = bundles.some((bundle) => bundle.card.status === "draft");
+  const hasPublished = bundles.some((bundle) => bundle.card.status === "published");
+  const hasReport = Object.values(context?.summariesByStudentId ?? {}).some(Boolean);
+  const steps = [
+    ["학교 연결", hasSchool],
+    ["학생 등록", hasStudent],
+    ["수업 준비", bundles.length > 0 || hasDraft],
+    ["학생 배포", hasPublished],
+    ["리포트 확인", hasReport],
+  ] as const;
+  return (
+    <section className="mvp-flow">
+      {steps.map(([label, done]) => (
+        <div key={label} className={done ? "is-done" : ""}>
+          <span>{done ? <Check size={16} /> : null}</span>
+          <strong>{label}</strong>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function DashboardView({
+  context,
+  bundles,
+  state,
+  onMove,
+  onRefresh,
+  onError,
+}: {
+  context: ApiClassroomContext | null;
+  bundles: CardBundle[];
+  state: LoadState;
+  onMove: (view: TeacherView, cardId?: string) => void;
+  onRefresh: () => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const published = bundles.filter((bundle) => bundle.card.status === "published");
+  const latest = bundles[0];
+  const helpStudents = context?.students.filter((student) => {
+    const summary = context.summariesByStudentId?.[student.id];
+    return summary && summary.helpRequestCount > 0;
+  }).length ?? 0;
+
+  return (
+    <>
+      <section className="mvp-hero">
+        <div>
+          <p className="mvp-eyebrow">교실 운영</p>
+          <h1>선생님이 만든 실행카드가 학생 화면과 리포트까지 이어져야 합니다</h1>
+          <p>현재 화면은 시연을 위한 단일 흐름만 보여줍니다. 먼저 학교와 학생을 설정한 뒤 수업 준비로 이동하세요.</p>
+        </div>
+        <button className="mvp-primary" onClick={() => onMove("prep")} disabled={!context?.students.length || !context?.school?.schoolCode} type="button">
+          수업 준비 시작
+          <ChevronRight size={18} />
+        </button>
+      </section>
+      <TeacherSetupPanel context={context} onRefresh={onRefresh} onError={onError} />
+      <FlowStrip context={context} bundles={bundles} />
+      <section className="mvp-metrics">
+        <MetricCard icon={Users} label="등록 학생" value={`${context?.students.length ?? 0}명`} detail="학생별 지원 프로필 연결" />
+        <MetricCard icon={ClipboardList} label="실행카드" value={`${bundles.length}개`} detail="교사가 생성한 카드" />
+        <MetricCard icon={Send} label="배포 과제" value={`${published.length}개`} detail="학생 화면에 노출" />
+        <MetricCard icon={BarChart3} label="도움 필요" value={`${helpStudents}명`} detail="로그 기반 집계" />
+      </section>
+      <section className="mvp-two-col">
+        <div className="mvp-panel">
+          <div className="mvp-panel-head">
+            <div>
+              <p className="mvp-eyebrow">최근 실행카드</p>
+              <h2>{latest ? latest.card.title : "아직 생성된 카드가 없습니다"}</h2>
+            </div>
+            {latest ? <span className={latest.card.status === "published" ? "mvp-status is-good" : "mvp-status"}>{latest.card.status === "published" ? "배포됨" : "초안"}</span> : null}
+          </div>
+          {latest ? (
+            <div className="mvp-card-preview">
+              <p>{latest.card.goal}</p>
+              <div className="mvp-badges">
+                <span>{latest.card.subject}</span>
+                <span>{gradeBand(latest.card.grade)}</span>
+                <span className={sourceTypeClass(latest.card.standardJson.sourceType)}>
+                  {sourceTypeLabel(latest.card.standardJson.sourceType)}
+                </span>
+              </div>
+              <button className="mvp-secondary" onClick={() => onMove("cards", latest.card.id)} type="button">
+                실행카드 편집
+              </button>
+            </div>
+          ) : (
+            <EmptyState
+              title="수업 준비가 먼저입니다"
+              body="학생을 등록한 뒤 수업 내용과 과제 지시문을 입력하면 AI가 실행카드를 생성합니다."
+              action={
+                <button className="mvp-secondary" onClick={() => onMove("prep")} type="button">
+                  수업 준비로 이동
+                </button>
+              }
+            />
+          )}
+        </div>
+        <div className="mvp-panel">
+          <div className="mvp-panel-head">
+            <div>
+              <p className="mvp-eyebrow">시연 체크</p>
+              <h2>학생 화면에서 확인할 것</h2>
+            </div>
+          </div>
+          <ol className="mvp-check-list">
+            <li>학생이 보는 과제 제목이 교사가 만든 카드와 같아야 합니다.</li>
+            <li>완료, 모르겠어요, 다시 쉽게 말해줘, 도움 문장 버튼이 로그로 저장되어야 합니다.</li>
+            <li>리포트 수치가 학생 수행 뒤 바뀌어야 합니다.</li>
+          </ol>
+          <button className="mvp-secondary" onClick={() => void onRefresh()} type="button">
+            {state === "loading" ? <Loader2 size={16} className="mvp-spin" /> : <RefreshCw size={16} />}
+            현재 데이터 다시 읽기
+          </button>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: React.ComponentType<{ size?: number }>;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <article>
+      <span>
+        <Icon size={20} />
+      </span>
+      <div>
+        <p>{label}</p>
+        <strong>{value}</strong>
+        <small>{detail}</small>
+      </div>
+    </article>
+  );
+}
+
+function SupportOptionToggles({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const normalized = normalizeSupportOptions(value);
+  function toggle(option: SupportOptionKey) {
+    const next = normalized.includes(option)
+      ? normalized.filter((item) => item !== option)
+      : [...normalized, option];
+    onChange(normalizeSupportOptions(next));
+  }
+  return (
+    <div className="mvp-option-grid">
+      {SUPPORT_OPTION_KEYS.map((option) => (
+        <button
+          key={option}
+          type="button"
+          className={normalized.includes(option) ? "is-selected" : ""}
+          onClick={() => toggle(option)}
+        >
+          <Check size={15} />
+          {SUPPORT_OPTION_LABELS[option]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function LessonPrepView({
+  context,
+  onGenerated,
+  onError,
+}: {
+  context: ApiClassroomContext | null;
+  onGenerated: (cardId: string) => Promise<void>;
+  onError: (message: string) => void;
+}) {
+  const firstStudent = context?.students[0] ?? null;
+  const [studentId, setStudentId] = useState(firstStudent?.id ?? "");
+  const selectedStudent = context?.students.find((student) => student.id === studentId) ?? firstStudent;
+  const [subject, setSubject] = useState("");
+  const [lessonDate, setLessonDate] = useState(today());
+  const [topic, setTopic] = useState("");
   const [lessonContent, setLessonContent] = useState("");
   const [assignmentInstruction, setAssignmentInstruction] = useState("");
+  const [standardQuery, setStandardQuery] = useState("");
   const [standards, setStandards] = useState<ApiStandardSearchResult[]>([]);
   const [selectedStandard, setSelectedStandard] = useState<ApiStandardSearchResult | null>(null);
-  const [supportOptions, setSupportOptions] = useState<SupportOptionKey[]>([
-    "easy_language",
-    "step_breakdown",
-    "visual_hint",
-    "repeat_check",
-    "help_sentence",
-  ]);
-  const [isDraftSaved, setIsDraftSaved] = useState(false);
-  const [previewExpanded, setPreviewExpanded] = useState(false);
+  const [supportOptions, setSupportOptions] = useState<string[]>(supportOptionsFromStudent(firstStudent));
+  const [busy, setBusy] = useState("");
 
   useEffect(() => {
-    if (!topic.trim()) return;
-    const controller = new AbortController();
-    requestJson<{ results: ApiStandardSearchResult[] }>(
-      `/api/standards/search?q=${encodeURIComponent(`${subject} ${grade} ${topic}`)}&subject=${encodeURIComponent(subject)}&gradeBand=${encodeURIComponent(`초${grade}`)}&limit=3`,
-      { signal: controller.signal },
-    )
-      .then((data) => {
-        setStandards(data.results);
-        setSelectedStandard((current) => current ?? data.results[0] ?? null);
-      })
-      .catch((reason: Error) => {
-        if (reason.name !== "AbortError") setStandards([]);
-      });
-    return () => controller.abort();
-  }, [grade, subject, topic]);
+    if (!studentId && firstStudent?.id) setStudentId(firstStudent.id);
+  }, [firstStudent?.id, studentId]);
 
-  function toggleOption(option: SupportOptionKey) {
-    setSupportOptions((current) => (current.includes(option) ? current.filter((item) => item !== option) : [...current, option]));
+  useEffect(() => {
+    setSupportOptions(supportOptionsFromStudent(selectedStudent));
+  }, [selectedStudent?.id]);
+
+  const canGenerate =
+    Boolean(context?.teacher?.id && context?.classroom?.id && context?.school?.id) &&
+    Boolean(selectedStudent) &&
+    subject.trim().length > 0 &&
+    topic.trim().length > 0 &&
+    lessonContent.trim().length > 0 &&
+    assignmentInstruction.trim().length > 0;
+
+  async function searchStandards() {
+    const query = (standardQuery || `${topic} ${assignmentInstruction}`).trim();
+    if (!query) {
+      onError("검색할 수업 주제나 과제 지시문을 먼저 입력해 주세요.");
+      return;
+    }
+    setBusy("standard");
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        limit: "5",
+      });
+      if (subject) params.set("subject", subject);
+      if (context?.classroom?.grade) params.set("gradeBand", gradeBand(context.classroom.grade));
+      const result = await requestJson<{ results: ApiStandardSearchResult[] }>(`/api/standards/search?${params.toString()}`);
+      setStandards(result.results ?? []);
+      setSelectedStandard(result.results?.[0] ?? null);
+      onError("");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "성취기준 검색에 실패했습니다.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function generateCard() {
+    if (!canGenerate) {
+      onError("학생, 과목, 주제, 수업 내용, 과제 지시문을 모두 입력해 주세요.");
+      return;
+    }
+    setBusy("generate");
+    try {
+      const classroom = context?.classroom;
+      const lesson = await requestJson<{ lesson: ApiLesson }>("/api/lessons", {
+        method: "POST",
+        body: JSON.stringify({
+          teacherId: context?.teacher?.id,
+          classroomId: classroom?.id,
+          schoolId: context?.school?.id,
+          gradeBand: gradeBand(classroom?.grade),
+          subject: subject.trim(),
+          topic: topic.trim(),
+          title: topic.trim(),
+          lessonDate,
+          lessonContent: lessonContent.trim(),
+          assignmentInstruction: assignmentInstruction.trim(),
+          selectedStandardId: selectedStandard ? standardCode(selectedStandard) : undefined,
+          selectedStandardText: selectedStandard?.summary,
+          selectedStandardSourceType: selectedStandard?.sourceType,
+          selectedStandardSourceName: selectedStandard?.sourceName,
+          selectedStandardSourceUrl: selectedStandard?.sourceUrl ?? selectedStandard?.url,
+          selectedStandardLicense: selectedStandard?.license,
+          supportOptions,
+          objectives: selectedStandard ? [selectedStandard.summary] : [lessonContent.trim()],
+        }),
+      });
+
+      const generated = await requestJson<{ card: ApiExecutionCard }>("/api/execution-cards/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: lesson.lesson.id,
+          subject: subject.trim(),
+          grade: gradeBand(classroom?.grade),
+          gradeBand: gradeBand(classroom?.grade),
+          topic: topic.trim(),
+          title: topic.trim(),
+          lessonContent: lesson.lesson.lessonContent,
+          assignmentInstruction: lesson.lesson.assignmentInstruction,
+          selectedStandardId: selectedStandard ? standardCode(selectedStandard) : undefined,
+          selectedStandardCode: selectedStandard?.standardCode,
+          selectedStandardText: selectedStandard?.summary,
+          selectedStandardSourceType: selectedStandard?.sourceType,
+          selectedStandardSourceName: selectedStandard?.sourceName,
+          selectedStandardSourceUrl: selectedStandard?.sourceUrl ?? selectedStandard?.url,
+          selectedStandardLicense: selectedStandard?.license,
+          supportOptions,
+          save: true,
+        }),
+      });
+      await onGenerated(generated.card.id);
+      onError("");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "실행카드 생성에 실패했습니다.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  if (!context?.school?.schoolCode || !context.students.length) {
+    return (
+      <EmptyState
+        title="수업 준비 전에 학교와 학생이 필요합니다"
+        body="교실 운영 화면에서 NEIS 학교를 연결하고 시연 대상 학생 1명을 먼저 등록하세요."
+      />
+    );
   }
 
   return (
-    <section className="dhg-teacher-page">
-      <div className="dhg-page-title">
-        <h1>수업 준비</h1>
-        <p>학생이 잘 이해하고 참여할 수 있도록, 다음 수업을 준비해보세요.</p>
+    <section className="mvp-panel mvp-prep">
+      <div className="mvp-panel-head">
+        <div>
+          <p className="mvp-eyebrow">수업 준비</p>
+          <h1>학생 한 명을 기준으로 실행카드를 만듭니다</h1>
+          <p>추천 성취기준은 수업 주제와 과제 지시문을 검색한 뒤에만 표시됩니다.</p>
+        </div>
+        <button className="mvp-primary" onClick={() => void generateCard()} disabled={!canGenerate || busy === "generate"} type="button">
+          {busy === "generate" ? <Loader2 size={17} className="mvp-spin" /> : <Send size={17} />}
+          실행카드 생성
+        </button>
       </div>
-      <div className="dhg-two-column">
-        <form
-          className="dhg-panel dhg-prep-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (!selectedStandard) return;
-            onGenerate({
-              schoolId: snapshot.schoolId,
-              classroomId: snapshot.classroomId,
-              grade,
-              classNo,
-              subject,
-              lessonDate,
-              topic,
-              lessonContent,
-              assignmentInstruction,
-              selectedStandardId: selectedStandard.citations[0]?.standardId ?? selectedStandard.id,
-              selectedStandardCode: standardCode(selectedStandard),
-              selectedStandardText: selectedStandard.summary,
-              selectedStandardSourceType: selectedStandard.sourceType,
-              selectedStandardSourceName: selectedStandard.sourceName ?? selectedStandard.citations[0]?.source,
-              selectedStandardSourceUrl: standardSourceUrl(selectedStandard),
-              selectedStandardLicense: selectedStandard.license,
-              supportOptions,
-            });
-          }}
-        >
-          <div className="dhg-panel-head">
-            <h2>다음 수업 지원 콘텐츠 만들기</h2>
-          </div>
-          <div className="dhg-form-grid">
-            {[
-              ["학교", snapshot.school],
-            ].map(([label, value]) => (
-              <label key={label}>
-                {label}
-                <select defaultValue={value}>
-                  <option>{value}</option>
-                </select>
-              </label>
+      <div className="mvp-form-grid">
+        <label>
+          학생
+          <select value={studentId} onChange={(event) => setStudentId(event.target.value)}>
+            {context.students.map((student) => (
+              <option key={student.id} value={student.id}>
+                {student.nickname} · {profileFromStudent(student)}
+              </option>
             ))}
-            <label>
-              학년
-              <select value={grade} onChange={(event) => setGrade(event.target.value)}>
-                <option value="3">3학년</option>
-                <option value="4">4학년</option>
-                <option value="5">5학년</option>
-              </select>
-            </label>
-            <label>
-              반
-              <select value={classNo} onChange={(event) => setClassNo(event.target.value)}>
-                <option value="1">1반</option>
-                <option value="2">2반</option>
-                <option value="3">3반</option>
-              </select>
-            </label>
-            <label>
-              과목
-              <select value={subject} onChange={(event) => setSubject(event.target.value)}>
-                <option>수학</option>
-                <option>국어</option>
-                <option>과학</option>
-              </select>
-            </label>
-            <label>
-              수업일
-              <input value={lessonDate} onChange={(event) => setLessonDate(event.target.value)} />
-            </label>
-            <label className="span-3">
-              주제
-              <input value={topic} onChange={(event) => setTopic(event.target.value)} />
-            </label>
+          </select>
+        </label>
+        <label>
+          과목
+          <input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="과목 입력" />
+        </label>
+        <label>
+          수업일
+          <input type="date" value={lessonDate} onChange={(event) => setLessonDate(event.target.value)} />
+        </label>
+        <label>
+          주제
+          <input value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="수업 주제 입력" />
+        </label>
+      </div>
+      <label className="mvp-wide-label">
+        수업 내용
+        <textarea value={lessonContent} onChange={(event) => setLessonContent(event.target.value)} placeholder="오늘 수업에서 다룰 개념과 활동을 입력하세요." rows={4} />
+      </label>
+      <label className="mvp-wide-label">
+        과제 지시문
+        <textarea value={assignmentInstruction} onChange={(event) => setAssignmentInstruction(event.target.value)} placeholder="학생이 실제로 수행해야 하는 과제 지시문을 입력하세요." rows={4} />
+      </label>
+      <div className="mvp-split">
+        <section>
+          <div className="mvp-mini-head">
+            <h3>성취기준 검색</h3>
+            <p>공식 metadata와 seed는 badge로 구분됩니다.</p>
           </div>
-          <label className="dhg-field">
-            성취기준 검색/선택
-            <div className="dhg-search-field">
-              <input placeholder="성취기준을 검색해보세요. (예: 직사각형, 둘레)" />
-              <span>⌕</span>
-            </div>
-          </label>
-          {selectedStandard ? (
-            <button className="dhg-selected-standard" type="button" onClick={() => setSelectedStandard(null)}>
-              <span className="dhg-standard-meta-row">
-                <b>{standardCode(selectedStandard)}</b>
-                <strong className={sourceTypeClassName(selectedStandard.sourceType)}>{sourceTypeLabel(selectedStandard.sourceType)}</strong>
-                <small>{selectedStandard.sourceName ?? selectedStandard.citations[0]?.source ?? "출처 미확인"}</small>
-              </span>
-              <span>{selectedStandard.summary} ×</span>
-            </button>
-          ) : null}
-          <label className="dhg-field">
-            수업 내용 입력
-            <textarea value={lessonContent} onChange={(event) => setLessonContent(event.target.value)} placeholder="학생에게 다룰 수업 내용을 입력하세요." />
-          </label>
-          <label className="dhg-field">
-            과제 지시문 입력
-            <textarea value={assignmentInstruction} onChange={(event) => setAssignmentInstruction(event.target.value)} placeholder="학생이 수행할 과제 지시문을 입력하세요." />
-          </label>
-          <div className="dhg-option-grid" role="group" aria-label="학생 지원 옵션">
-            {SUPPORT_OPTION_KEYS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                className={supportOptions.includes(option) ? "is-selected" : ""}
-                onClick={() => toggleOption(option)}
-              >
-                <span>{supportOptions.includes(option) ? "✓" : "+"}</span>
-                {SUPPORT_OPTION_LABELS[option]}
-              </button>
-            ))}
-          </div>
-          <div className="dhg-action-row">
-            <button
-              className="dhg-secondary"
-              type="button"
-              onClick={() => {
-                setIsDraftSaved(true);
-                copyTextToClipboard(`수업 주제: ${topic}\n성취기준: ${selectedStandard?.summary ?? ""}\n지원 옵션: ${supportOptionLabels(supportOptions).join(", ")}`);
-              }}
-            >
-              {isDraftSaved ? "임시 저장됨" : "임시 저장"}
-            </button>
-            <button className="dhg-primary" type="submit" disabled={isSaving || !topic.trim() || !lessonContent.trim() || !assignmentInstruction.trim() || !selectedStandard}>
-              {isSaving ? "생성 중..." : "실행카드 생성"}
+          <div className="mvp-inline-form">
+            <input value={standardQuery} onChange={(event) => setStandardQuery(event.target.value)} placeholder="비워두면 주제/과제 지시문으로 검색" />
+            <button className="mvp-secondary" onClick={() => void searchStandards()} type="button">
+              {busy === "standard" ? <Loader2 size={16} className="mvp-spin" /> : <Search size={16} />}
+              검색
             </button>
           </div>
-        </form>
-
-        <aside className="dhg-side-stack">
-          <div className="dhg-panel">
-            <div className="dhg-panel-head">
-              <h2>추천 성취기준</h2>
-              <button type="button" onClick={() => setSelectedStandard(standards[0] ?? null)}>
-                새로고침
-              </button>
-            </div>
-            {standards.map((standard) => (
-              <div
-                key={standard.id}
-                className="dhg-standard-card"
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedStandard(standard)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setSelectedStandard(standard);
-                  }
-                }}
-              >
-                <div className="dhg-standard-meta-row">
-                  <span>{standardCode(standard)}</span>
-                  <strong className={sourceTypeClassName(standard.sourceType)}>{sourceTypeLabel(standard.sourceType)}</strong>
-                  <em>{typeof standard.score === "number" ? `유사도 ${standard.score}` : "검색 결과"}</em>
-                </div>
-                <p>{standard.summary}</p>
-                <div className="dhg-source-row">
-                  <small>{standard.sourceName ?? standard.citations[0]?.source ?? "출처 미확인"}</small>
-                  {standardSourceUrl(standard) ? (
-                    <a href={standardSourceUrl(standard)} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
-                      출처
-                    </a>
-                  ) : null}
-                </div>
-                {standard.license ? <small className="dhg-license-note">{standard.license}</small> : null}
-              </div>
-            ))}
+          <div className="mvp-standard-list">
+            {standards.length === 0 ? (
+              <p>아직 검색하지 않았습니다.</p>
+            ) : (
+              standards.map((standard) => (
+                <button
+                  key={standard.id}
+                  className={selectedStandard?.id === standard.id ? "is-selected" : ""}
+                  onClick={() => setSelectedStandard(standard)}
+                  type="button"
+                >
+                  <strong>{standardCode(standard)}</strong>
+                  <span>{standard.summary}</span>
+                  <small>
+                    <b className={sourceTypeClass(standard.sourceType)}>{sourceTypeLabel(standard.sourceType)}</b>
+                    {standard.sourceName ?? "출처명 확인 필요"}
+                    {standard.license ? ` · ${standard.license}` : " · 이용조건 확인 필요"}
+                  </small>
+                </button>
+              ))
+            )}
           </div>
-          <div className="dhg-panel dhg-student-preview-card">
-            <div className="dhg-panel-head">
-              <h2>수업 전 미리보기</h2>
-              <button type="button" onClick={() => setPreviewExpanded((current) => !current)}>
-                {previewExpanded ? "간단히 보기" : "자세히 보기"}
-              </button>
-            </div>
-            <span>{subject}</span>
-            <h3>{topic || "수업 주제"}</h3>
-            <div className="dhg-keyword-row">
-              {(selectedStandard?.summary.match(/[가-힣A-Za-z0-9]+/g)?.slice(0, 5) ?? [subject, `초${grade}`, topic]).map((word) => (
-                <b key={word}>{word}</b>
-              ))}
-            </div>
-            <ul>
-              <li>{selectedStandard?.summary ?? "성취기준을 선택해요."}</li>
-              <li>{lessonContent || "수업 내용을 입력해요."}</li>
-              <li>{assignmentInstruction || "과제 지시문을 입력해요."}</li>
-              {previewExpanded ? (
-                <>
-                  <li>선택한 성취기준과 과제 지시문을 기준으로 단계가 나뉩니다.</li>
-                  <li>지원 옵션: {supportOptionLabels(supportOptions).join(", ")}</li>
-                </>
-              ) : null}
-            </ul>
+        </section>
+        <section>
+          <div className="mvp-mini-head">
+            <h3>학생 지원 옵션</h3>
+            <p>{selectedStudent ? `${selectedStudent.nickname}: ${profileFromStudent(selectedStudent)}` : "학생을 선택하세요."}</p>
           </div>
-        </aside>
+          <SupportOptionToggles value={supportOptions} onChange={setSupportOptions} />
+        </section>
       </div>
     </section>
   );
 }
 
-function TeacherCards({
-  snapshot,
-  setSnapshot,
-  onPersist,
-  onRegenerate,
-  isSaving,
-}: {
-  snapshot: DemoSnapshot;
-  setSnapshot: React.Dispatch<React.SetStateAction<DemoSnapshot>>;
-  onPersist: (kind: "save" | "deploy") => void;
-  onRegenerate: () => void;
-  isSaving: boolean;
-}) {
-  const card = snapshot.cards.find((item) => item.id === snapshot.activeCardId);
-  const steps = card?.steps ?? [];
+type EditableCard = {
+  title: string;
+  goal: string;
+  subject: string;
+  grade: string;
+  topic: string;
+  standard: ApiExecutionCard["standardJson"];
+  easyExplanation: string;
+  keywords: ApiExecutionCard["keywordsJson"];
+  review: ApiExecutionCard["reviewJson"];
+  steps: Array<{
+    id?: string;
+    stepText: string;
+    visualHint: VisualHint;
+    microQuiz: MicroQuiz;
+    helpSentence: string;
+    teacherTip: string;
+  }>;
+};
 
-  if (!card) {
+function editableFromBundle(bundle?: CardBundle | null): EditableCard | null {
+  if (!bundle) return null;
+  return {
+    title: bundle.card.title,
+    goal: bundle.card.goal,
+    subject: bundle.card.subject,
+    grade: bundle.card.grade,
+    topic: bundle.card.topic,
+    standard: bundle.card.standardJson,
+    easyExplanation: bundle.card.easyExplanation,
+    keywords: bundle.card.keywordsJson,
+    review: bundle.card.reviewJson,
+    steps: bundle.steps.map((step) => ({
+      id: step.id,
+      stepText: step.stepText,
+      visualHint: step.visualHintJson,
+      microQuiz: step.microQuizJson,
+      helpSentence: step.helpSentence,
+      teacherTip: step.teacherTip,
+    })),
+  };
+}
+
+function CardEditorView({
+  bundle,
+  onSaved,
+  onMove,
+  onError,
+}: {
+  bundle: CardBundle | null;
+  onSaved: (cardId: string) => Promise<void>;
+  onMove: (view: TeacherView, cardId?: string) => void;
+  onError: (message: string) => void;
+}) {
+  const [draft, setDraft] = useState<EditableCard | null>(() => editableFromBundle(bundle));
+  const [selectedStep, setSelectedStep] = useState(0);
+  const [state, setState] = useState<LoadState>("idle");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    setDraft(editableFromBundle(bundle));
+    setSelectedStep(0);
+    setDirty(false);
+  }, [bundle?.card.id]);
+
+  if (!bundle || !draft) {
     return (
-      <section className="dhg-teacher-page dhg-card-editor-page">
-        <div className="dhg-empty">
-          <strong>실행카드를 찾을 수 없습니다.</strong>
-          <p>URL의 cardId에 해당하는 카드가 DB에 있는지 확인해 주세요.</p>
-        </div>
-      </section>
+      <EmptyState
+        title="편집할 실행카드가 없습니다"
+        body="수업 준비 화면에서 먼저 학생별 실행카드를 생성하세요."
+        action={
+          <button className="mvp-secondary" onClick={() => onMove("prep")} type="button">
+            수업 준비로 이동
+          </button>
+        }
+      />
     );
   }
-  const activeCard = card;
+  const currentBundle = bundle;
+  const currentDraft = draft;
 
-  function updateStep(stepId: string, field: keyof LessonStep, value: string) {
-    setSnapshot((current) => ({
-      ...current,
-      cards: current.cards.map((item) =>
-        item.id === activeCard.id
-          ? {
-              ...item,
-              steps: steps.map((step) => (step.id === stepId ? { ...step, [field]: value } : step)),
-            }
-          : item,
-      ),
-    }));
+  function patchDraft(next: Partial<EditableCard>) {
+    setDraft((current) => (current ? { ...current, ...next } : current));
+    setDirty(true);
   }
 
-  function deleteStep(stepId: string) {
-    setSnapshot((current) => ({
-      ...current,
-      cards: current.cards.map((item) =>
-        item.id === activeCard.id ? { ...item, steps: steps.filter((step) => step.id !== stepId) } : item,
-      ),
-    }));
+  function updateStep(index: number, next: Partial<EditableCard["steps"][number]>) {
+    setDraft((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        steps: current.steps.map((step, stepIndex) => (stepIndex === index ? { ...step, ...next } : step)),
+      };
+    });
+    setDirty(true);
   }
 
-  function moveStep(stepId: string) {
-    const index = steps.findIndex((step) => step.id === stepId);
-    if (index < 0 || steps.length < 2) return;
-    const targetIndex = index === steps.length - 1 ? index - 1 : index + 1;
-    const reordered = [...steps];
-    [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
-    setSnapshot((current) => ({
-      ...current,
-      cards: current.cards.map((item) => (item.id === activeCard.id ? { ...item, steps: reordered } : item)),
-    }));
+  function updateQuiz(index: number, next: Partial<MicroQuiz>) {
+    setDraft((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        steps: current.steps.map((step, stepIndex) =>
+          stepIndex === index ? { ...step, microQuiz: { ...step.microQuiz, ...next } } : step,
+        ),
+      };
+    });
+    setDirty(true);
+  }
+
+  function moveStep(index: number, direction: -1 | 1) {
+    setDraft((current) => {
+      if (!current) return current;
+      const target = index + direction;
+      if (target < 0 || target >= current.steps.length) return current;
+      const steps = [...current.steps];
+      const [item] = steps.splice(index, 1);
+      steps.splice(target, 0, item);
+      setSelectedStep(target);
+      return { ...current, steps };
+    });
+    setDirty(true);
+  }
+
+  function deleteStep(index: number) {
+    if (currentDraft.steps.length <= 3) {
+      onError("실행카드는 최소 3단계를 유지해야 합니다.");
+      return;
+    }
+    setDraft((current) => current ? { ...current, steps: current.steps.filter((_, stepIndex) => stepIndex !== index) } : current);
+    setSelectedStep((current) => Math.max(0, Math.min(current, currentDraft.steps.length - 2)));
+    setDirty(true);
   }
 
   function addStep() {
-    const next: LessonStep = {
-      id: `step-${Date.now()}`,
-      title: "새 단계 내용을 입력해요.",
-      visualHint: { type: "text_only", data: { text: "새 단계 시각 단서를 입력하세요." } },
-      checkQuestion: "학생에게 확인할 질문을 입력하세요.",
-      choices: ["확인했어요", "다시 볼래요"],
-      answer: "확인했어요",
-      helpSentence: "도움 요청 시 보여줄 문장을 입력하세요.",
-      teacherTip: "교사용 지도 팁을 입력하세요.",
-    };
-    setSnapshot((current) => ({
-      ...current,
-      cards: current.cards.map((item) => (item.id === activeCard.id ? { ...item, steps: [...steps, next] } : item)),
-    }));
+    if (currentDraft.steps.length >= 5) {
+      onError("실행카드는 최대 5단계까지 유지합니다.");
+      return;
+    }
+    setDraft((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        steps: [
+          ...current.steps,
+          {
+            stepText: "학생이 바로 할 수 있는 다음 행동을 입력하세요.",
+            visualHint: { type: "text_only", data: { text: "현재 단계에서 볼 단서" } },
+            microQuiz: { question: "지금 확인할 것은 무엇인가요?", choices: ["현재 단계", "다른 과제"], answer: "현재 단계" },
+            helpSentence: "선생님, 이 단계를 다시 확인하고 싶어요.",
+            teacherTip: "학생이 혼자 시작할 수 있도록 첫 행동만 짚어 주세요.",
+          },
+        ],
+      };
+    });
+    setSelectedStep(currentDraft.steps.length);
+    setDirty(true);
   }
 
+  async function save(status?: "draft" | "published") {
+    setState("saving");
+    try {
+      const body = {
+        title: currentDraft.title,
+        goal: currentDraft.goal,
+        subject: currentDraft.subject,
+        grade: currentDraft.grade,
+        topic: currentDraft.topic,
+        standard: currentDraft.standard,
+        keywords: currentDraft.keywords,
+        easyExplanation: currentDraft.easyExplanation,
+        review: currentDraft.review,
+        status,
+        steps: currentDraft.steps.map((step, index) => ({
+          id: step.id,
+          order: index + 1,
+          stepText: step.stepText,
+          visualHint: step.visualHint,
+          microQuiz: step.microQuiz,
+          helpSentence: step.helpSentence,
+          teacherTip: step.teacherTip,
+        })),
+      };
+      await requestJson(`/api/execution-cards/${currentBundle.card.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      if (status === "published") {
+        await requestJson(`/api/execution-cards/${currentBundle.card.id}/publish`, { method: "POST" });
+      }
+      await onSaved(currentBundle.card.id);
+      setDirty(false);
+      setState("idle");
+      onError("");
+    } catch (error) {
+      setState("error");
+      onError(error instanceof Error ? error.message : "실행카드 저장에 실패했습니다.");
+    }
+  }
+
+  const previewStep = currentDraft.steps[selectedStep] ?? currentDraft.steps[0];
+  const studentLink = `/student/tasks/${encodeURIComponent(currentBundle.card.id)}`;
+
   return (
-    <section className="dhg-teacher-page dhg-card-editor-page">
-      <div className="dhg-page-title">
-        <p>실행카드 목록 › 실행카드 편집</p>
-        <h1>실행카드 편집</h1>
-      </div>
-      <div className="dhg-editor-grid">
-        <div className="dhg-editor-main">
-          <section className="dhg-panel dhg-original-prompt">
-            <div className="dhg-panel-head">
-              <h2>원문 지시문</h2>
-              <button
-                type="button"
-                onClick={() =>
-                  copyTextToClipboard(
-                    `${card.subject} ${card.grade} ${card.title}\n목표: ${card.goal}\n쉬운 설명: ${card.easyExplanation}`,
-                  )
-                }
-              >
-                복사
+    <section className="mvp-editor">
+      <div className="mvp-editor-main">
+        <div className="mvp-panel">
+          <div className="mvp-panel-head">
+            <div>
+              <p className="mvp-eyebrow">실행카드 편집</p>
+              <h1>{draft.title}</h1>
+              <p>교사가 수정한 내용은 저장 후 새로고침해도 유지되고, 배포하면 학생 화면에 바로 반영됩니다.</p>
+            </div>
+            <div className="mvp-editor-actions">
+              <span className={bundle.card.status === "published" ? "mvp-status is-good" : "mvp-status"}>
+                {bundle.card.status === "published" ? "배포됨" : dirty ? "수정 중" : "초안"}
+              </span>
+              <button className="mvp-secondary" onClick={() => void save()} disabled={state === "saving"} type="button">
+                <Save size={16} />
+                저장
+              </button>
+              <button className="mvp-primary" onClick={() => void save("published")} disabled={state === "saving"} type="button">
+                <Send size={16} />
+                학생에게 배포
               </button>
             </div>
-            <p>
-              <span>{card.subject}</span> <span>{card.grade}</span> {card.title}
-            </p>
-            <div className="dhg-standard-meta-row">
-              {card.standard.code ? <span>{card.standard.code}</span> : null}
-              <strong className={sourceTypeClassName(card.standard.sourceType as ApiStandardSearchResult["sourceType"] | undefined)}>
-                {sourceTypeLabel(card.standard.sourceType)}
-              </strong>
-              <small>{card.standard.sourceName ?? "출처 미확인"}</small>
-            </div>
-            <h3>{card.goal}</h3>
-            <small>{card.easyExplanation}</small>
-          </section>
-          <section className="dhg-editor-steps">
-            <div className="dhg-panel-head">
-              <h2>AI 생성 결과</h2>
-              <div className="dhg-quality-pills">
-                {supportOptionLabels(activeCard.supportOptions).slice(0, 3).map((label) => (
-                  <span key={label}>{label} ✓</span>
-                ))}
-              </div>
-            </div>
-            {steps.map((step, index) => (
-              <article key={step.id} className="dhg-step-card">
-                <div className="dhg-step-index">{index + 1}</div>
-                <label>
-                  단계 제목
-                  <input value={step.title} onChange={(event) => updateStep(step.id, "title", event.target.value)} />
-                </label>
-                <label>
-                  확인 질문
-                  <input value={step.checkQuestion} onChange={(event) => updateStep(step.id, "checkQuestion", event.target.value)} />
-                </label>
-                <label>
-                  도움 요청 문장
-                  <input value={step.helpSentence} onChange={(event) => updateStep(step.id, "helpSentence", event.target.value)} />
-                </label>
-                <label>
-                  교사용 팁
-                  <input value={step.teacherTip} onChange={(event) => updateStep(step.id, "teacherTip", event.target.value)} />
-                </label>
-                <div className="dhg-step-actions">
-                  <button type="button" onClick={() => moveStep(step.id)}>
-                    순서 변경
+          </div>
+          <div className="mvp-form-grid">
+            <label>
+              제목
+              <input value={draft.title} onChange={(event) => patchDraft({ title: event.target.value })} />
+            </label>
+            <label>
+              목표
+              <input value={draft.goal} onChange={(event) => patchDraft({ goal: event.target.value })} />
+            </label>
+          </div>
+          <label className="mvp-wide-label">
+            쉬운 설명
+            <textarea value={draft.easyExplanation} onChange={(event) => patchDraft({ easyExplanation: event.target.value })} rows={3} />
+          </label>
+          <div className="mvp-standard-box">
+            <strong>{draft.standard.code ?? draft.standard.id ?? "성취기준 코드 확인 필요"}</strong>
+            <p>{draft.standard.text}</p>
+            <span className={sourceTypeClass(draft.standard.sourceType)}>{sourceTypeLabel(draft.standard.sourceType)}</span>
+            <small>{draft.standard.sourceName ?? "출처명 확인 필요"} · {draft.standard.license ?? "이용조건 확인 필요"}</small>
+          </div>
+          <div className="mvp-step-toolbar">
+            <h2>단계 {draft.steps.length}개</h2>
+            <button className="mvp-secondary" onClick={addStep} type="button">
+              <Plus size={16} />
+              단계 추가
+            </button>
+          </div>
+          <div className="mvp-step-list">
+            {draft.steps.map((step, index) => (
+              <article key={step.id ?? index} className={selectedStep === index ? "is-active" : ""}>
+                <button className="mvp-step-selector" onClick={() => setSelectedStep(index)} type="button">
+                  <span>{index + 1}</span>
+                  <strong>{step.stepText}</strong>
+                </button>
+                <div className="mvp-step-fields">
+                  <label>
+                    학생 행동
+                    <input value={step.stepText} onChange={(event) => updateStep(index, { stepText: event.target.value })} />
+                  </label>
+                  <label>
+                    확인 질문
+                    <input value={step.microQuiz.question} onChange={(event) => updateQuiz(index, { question: event.target.value })} />
+                  </label>
+                  <label>
+                    선택지
+                    <input value={step.microQuiz.choices.join(" / ")} onChange={(event) => updateQuiz(index, { choices: event.target.value.split("/").map((item) => item.trim()).filter(Boolean) })} />
+                  </label>
+                  <label>
+                    정답
+                    <input value={step.microQuiz.answer} onChange={(event) => updateQuiz(index, { answer: event.target.value })} />
+                  </label>
+                  <label>
+                    도움 문장
+                    <input value={step.helpSentence} onChange={(event) => updateStep(index, { helpSentence: event.target.value })} />
+                  </label>
+                  <label>
+                    교사용 팁
+                    <input value={step.teacherTip} onChange={(event) => updateStep(index, { teacherTip: event.target.value })} />
+                  </label>
+                </div>
+                <div className="mvp-row-actions">
+                  <button onClick={() => moveStep(index, -1)} disabled={index === 0} type="button">
+                    위로
                   </button>
-                  <button type="button" onClick={() => deleteStep(step.id)}>
+                  <button onClick={() => moveStep(index, 1)} disabled={index === draft.steps.length - 1} type="button">
+                    아래로
+                  </button>
+                  <button onClick={() => deleteStep(index)} disabled={draft.steps.length <= 3} type="button">
+                    <Trash2 size={15} />
                     삭제
                   </button>
                 </div>
               </article>
             ))}
-            <button className="dhg-add-step" type="button" onClick={addStep}>
-              + 단계 추가
-            </button>
-          </section>
-        </div>
-        <aside className="dhg-panel dhg-phone-preview-panel">
-          <div className="dhg-panel-head">
-            <h2>학생 화면 미리보기</h2>
-            <button
-              type="button"
-              disabled={!card?.id}
-              onClick={() => card?.id && window.open(studentRoute("task", card.id), "_blank", "noopener,noreferrer")}
-            >
-              학생 화면 열기
-            </button>
           </div>
-          <StudentPhonePreview card={card} step={steps[1] ?? steps[0]} />
-        </aside>
+        </div>
       </div>
-      <div className="dhg-bottom-actions">
-        <button className="dhg-secondary" type="button" disabled={isSaving} onClick={onRegenerate}>
-          다시 생성
-        </button>
-        <button className="dhg-secondary blue" type="button" disabled={isSaving} onClick={() => onPersist("save")}>
-          {isSaving ? "저장 중..." : "저장"}
-        </button>
-        <button className="dhg-primary blue" type="button" disabled={isSaving} onClick={() => onPersist("deploy")}>
-          학생에게 배포
-        </button>
-      </div>
+      <aside className="mvp-editor-side">
+        <StudentMiniPreview card={draft} step={previewStep} stepIndex={selectedStep} />
+        {bundle.card.status === "published" ? (
+          <a className="mvp-student-link" href={studentLink}>
+            학생 화면 열기
+            <ChevronRight size={16} />
+          </a>
+        ) : (
+          <p className="mvp-muted">배포 전에는 학생 화면에 노출되지 않습니다.</p>
+        )}
+      </aside>
     </section>
   );
 }
 
-function TeacherReports({ snapshot, setActiveView, studentId }: { snapshot: DemoSnapshot; setActiveView: (view: TeacherView) => void; studentId?: string }) {
-  const [showTable, setShowTable] = useState(false);
-  const [selectedStudentId, setSelectedStudentId] = useState(studentId ?? snapshot.students[0]?.id ?? "");
-  const selected = snapshot.students.find((student) => student.id === selectedStudentId) ?? snapshot.students[0];
-  const activeCard = snapshot.cards.find((card) => card.id === snapshot.activeCardId) ?? snapshot.cards[0];
-  const [reportData, setReportData] = useState<ApiStudentReportResult | null>(null);
-  const [reportError, setReportError] = useState("");
+function StudentMiniPreview({
+  card,
+  step,
+  stepIndex,
+}: {
+  card: EditableCard;
+  step: EditableCard["steps"][number];
+  stepIndex: number;
+}) {
+  return (
+    <div className="mvp-mini-phone">
+      <div className="mvp-mini-brand">
+        <img src={DEFAULT_ASSETS.logo} alt="" />
+        <strong>다음한걸음</strong>
+      </div>
+      <div className="mvp-mini-card">
+        <div className="mvp-badges">
+          <span>{card.subject}</span>
+          <span>{gradeBand(card.grade)}</span>
+        </div>
+        <h3>{card.title}</h3>
+        <p>{card.easyExplanation}</p>
+      </div>
+      <div className="mvp-mini-step">
+        <span>{stepIndex + 1}단계</span>
+        <h4>{step.stepText}</h4>
+        <VisualHintView hint={step.visualHint} compact />
+        <button type="button">완료했어요</button>
+      </div>
+    </div>
+  );
+}
+
+function ReportsView({
+  context,
+  bundles,
+  initialStudentId,
+  onError,
+}: {
+  context: ApiClassroomContext | null;
+  bundles: CardBundle[];
+  initialStudentId?: string;
+  onError: (message: string) => void;
+}) {
+  const [studentId, setStudentId] = useState(initialStudentId ?? context?.students[0]?.id ?? "");
+  const [cardId, setCardId] = useState(context?.activeCardId ?? bundles[0]?.card.id ?? "");
+  const [report, setReport] = useState<ApiReport | null>(null);
+  const [state, setState] = useState<LoadState>("idle");
 
   useEffect(() => {
-    if (studentId) setSelectedStudentId(studentId);
-  }, [studentId]);
+    if (!studentId && context?.students[0]?.id) setStudentId(context.students[0].id);
+    if (!cardId && bundles[0]?.card.id) setCardId(bundles[0].card.id);
+  }, [context?.students, bundles, cardId, studentId]);
 
   useEffect(() => {
-    if (!selectedStudentId && snapshot.students[0]?.id) setSelectedStudentId(snapshot.students[0].id);
-  }, [selectedStudentId, snapshot.students]);
-
-  useEffect(() => {
-    if (!selected?.id || !activeCard?.id) return;
+    if (!studentId || !cardId) return;
     let alive = true;
-    setReportError("");
-    requestJson<ApiStudentReportResult>(
-      `/api/reports/students/${encodeURIComponent(selected.id)}?cardId=${encodeURIComponent(activeCard.id)}`,
-    )
-      .then((data) => {
+    setState("loading");
+    requestJson<ApiReport>(`/api/reports/students/${encodeURIComponent(studentId)}?cardId=${encodeURIComponent(cardId)}`)
+      .then((next) => {
         if (!alive) return;
-        setReportData(data);
+        setReport(next);
+        setState("idle");
+        onError("");
       })
-      .catch((reason: Error) => {
+      .catch((error) => {
         if (!alive) return;
-        setReportError(`리포트 API 요청 실패: ${reason.message}`);
-        setReportData(null);
+        setReport(null);
+        setState("error");
+        onError(error instanceof Error ? error.message : "리포트를 불러오지 못했습니다.");
       });
     return () => {
       alive = false;
     };
-  }, [activeCard?.id, selected?.id]);
+  }, [studentId, cardId, onError]);
 
-  const summary = reportData?.summary;
-  const stages = reportData?.perStep ?? [];
-  const completedStepCount = stages.filter((stage) => stage.isCompleted).length;
-  const averageSeconds = completedStepCount ? Math.round((summary?.totalTimeSeconds ?? 0) / completedStepCount) : 0;
-  const parentMemo = reportData?.report.parentMemo ?? "아직 저장된 수행 로그가 없어 보호자 공유 메모를 생성하지 못했습니다.";
-  const stats = [
-    ["✓", "완료율", `${summary?.completionRate ?? 0}%`, "학생 로그 기반"],
-    ["◷", "평균 소요 시간", formatDuration(averageSeconds), "단계 시작/완료 로그 기반"],
-    ["♙", "도움 요청 횟수", `${summary?.helpRequestCount ?? 0}회`, "모르겠어요/쉬운 설명/도움 문장"],
-    ["!", "막힌 단계 수", `${summary?.stuckStepCount ?? 0}개`, "도움 요청 또는 오답 기준"],
-  ];
-  const recommendations = reportData?.report.aiRecommendationsJson ?? [];
-
-  if (!selected) {
+  if (!context?.students.length || !bundles.length) {
     return (
-      <section className="dhg-teacher-page">
-        <div className="dhg-page-title">
-          <h1>학생 리포트</h1>
-          <p>학생을 등록하고 과제를 배포하면 수행 로그 기반 리포트가 생성됩니다.</p>
-        </div>
-        <div className="dhg-empty">
-          <strong>등록된 학생이 없습니다.</strong>
-          <p>대시보드의 교실 시작 설정에서 학생을 먼저 등록해 주세요.</p>
-          <button className="dhg-primary" type="button" onClick={() => setActiveView("dashboard")}>
-            학생 등록하러 가기
-          </button>
-        </div>
-      </section>
+      <EmptyState
+        title="리포트에 필요한 학생과 카드가 없습니다"
+        body="학생을 등록하고 실행카드를 배포한 뒤 학생 화면에서 수행 로그를 남기세요."
+      />
     );
   }
 
-  function downloadReport() {
-    const content = [
-      `학생 리포트 - ${selected.name}`,
-      `과제: ${activeCard?.title ?? "선택된 과제 없음"}`,
-      `완료율: ${summary?.completionRate ?? 0}%`,
-      `도움 요청 횟수: ${summary?.helpRequestCount ?? 0}회`,
-      `막힌 단계 수: ${summary?.stuckStepCount ?? 0}개`,
-      "",
-      parentMemo,
-    ].join("\n");
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${selected.name}-report.txt`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }
-
   return (
-    <section className="dhg-teacher-page">
-      <div className="dhg-page-title dhg-title-row">
+    <section className="mvp-panel mvp-report">
+      <div className="mvp-panel-head">
         <div>
-          <h1>학생 리포트</h1>
-          <p>학생의 학습 수행 데이터를 분석하여 맞춤 지원 전략을 확인해 보세요.</p>
+          <p className="mvp-eyebrow">학생 리포트</p>
+          <h1>수행 로그가 학생 지원 전략으로 바뀝니다</h1>
         </div>
-        <button className="dhg-secondary" type="button" onClick={downloadReport}>
-          리포트 다운로드
-        </button>
+        {state === "loading" ? <Loader2 size={20} className="mvp-spin" /> : null}
       </div>
-      <div className="dhg-student-select">
-        <span>{selected.avatar}</span>
-        <strong>{selected.name}</strong>
-        <small>{snapshot.className}</small>
-        <div>
-          {snapshot.students.map((student) => (
-            <button
-              key={student.id}
-              className={student.id === selected.id ? "is-active" : ""}
-              type="button"
-              onClick={() => setSelectedStudentId(student.id)}
-            >
-              {student.name}
-            </button>
-          ))}
-        </div>
+      <div className="mvp-form-grid">
+        <label>
+          학생
+          <select value={studentId} onChange={(event) => setStudentId(event.target.value)}>
+            {context.students.map((student) => (
+              <option key={student.id} value={student.id}>
+                {student.nickname}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          실행카드
+          <select value={cardId} onChange={(event) => setCardId(event.target.value)}>
+            {bundles.map((bundle) => (
+              <option key={bundle.card.id} value={bundle.card.id}>
+                {bundle.card.title}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-      <ErrorBanner message={reportError} />
-      <div className="dhg-report-stats">
-        {stats.map(([icon, label, value, diff]) => (
-          <article key={label} className="dhg-stat-card">
-            <span>{icon}</span>
-            <div>
-              <p>{label}</p>
-              <strong>{value}</strong>
-              <small>{diff}</small>
-            </div>
-          </article>
-        ))}
-      </div>
-      <div className="dhg-two-column reports">
-        <div className="dhg-side-stack">
-          <section className="dhg-panel">
-            <div className="dhg-panel-head">
-              <h2>단계별 수행 흐름</h2>
-              <button type="button" onClick={() => setShowTable((current) => !current)}>
-                {showTable ? "차트 보기" : "표 보기"}
-              </button>
-            </div>
-            {showTable ? (
-              <div className="dhg-record-table compact">
-                {stages.map((stage) => (
-                  <button key={stage.step.id} type="button" onClick={() => setActiveView("cards")}>
-                    <strong>{stage.step.order}단계</strong>
-                    <span>{stage.isCompleted ? "완료" : "미완료"} · 도움 {stage.confusedCount + stage.simplifyCount + (stage.helpSentenceViewedCount ?? 0)}회</span>
-                    <em>{formatDuration(stage.timeSeconds)}</em>
-                    <b>›</b>
-                  </button>
+      {report ? (
+        <>
+          <section className="mvp-metrics">
+            <MetricCard icon={Check} label="완료율" value={`${report.summary.completionRate}%`} detail="완료 단계 / 전체 단계" />
+            <MetricCard icon={Headphones} label="도움 요청" value={`${report.summary.helpRequestCount}회`} detail="막힘, 쉬운 설명, 도움 문장" />
+            <MetricCard icon={BookOpen} label="퀴즈" value={`${report.summary.correctQuizCount}/${report.summary.totalQuizCount}`} detail="정답 / 응답" />
+            <MetricCard icon={BarChart3} label="막힌 단계" value={`${report.summary.stuckStepCount}개`} detail={formatSeconds(report.summary.totalTimeSeconds)} />
+          </section>
+          <div className="mvp-split">
+            <section>
+              <h3>단계별 수행 흐름</h3>
+              <div className="mvp-report-steps">
+                {report.perStep.map((item) => (
+                  <article key={item.step.id}>
+                    <span>{item.step.order}</span>
+                    <div>
+                      <strong>{item.step.stepText}</strong>
+                      <small>
+                        완료 {item.isCompleted ? "예" : "아니오"} · 도움 {item.confusedCount + item.simplifyCount + (item.helpSentenceViewedCount ?? 0)}회 · 퀴즈 {item.quizAnswered ? (item.isCorrect ? "정답" : "오답") : "미응답"}
+                      </small>
+                    </div>
+                  </article>
                 ))}
               </div>
-            ) : (
-              <div className="dhg-chart" aria-label="단계별 완료율 차트">
-                {stages.map((stage) => {
-                  const value = stage.isCompleted ? 100 : stage.quizAnswered || stage.confusedCount || stage.simplifyCount ? 50 : 15;
-                  return (
-                  <div key={stage.step.id} style={{ "--bar": `${value}%` } as React.CSSProperties}>
-                    <span>{formatDuration(stage.timeSeconds)}</span>
-                    <b />
-                    <em>{stage.step.order}단계</em>
-                  </div>
-                );})}
+            </section>
+            <section>
+              <h3>AI 추천 지원</h3>
+              <div className="mvp-tag-row">
+                {report.report.difficultyTagsJson.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
               </div>
-            )}
-            <p className="dhg-info-note">{reportData?.report.summary ?? "학생 수행 로그가 쌓이면 단계별 흐름이 표시됩니다."}</p>
-          </section>
-          <section className="dhg-panel">
-            <div className="dhg-panel-head">
-              <h2>최근 과제 수행 기록</h2>
-              <button type="button" onClick={() => setActiveView("cards")}>
-                전체 과제 보기 ›
-              </button>
-            </div>
-            <div className="dhg-record-table">
-              {snapshot.cards.map((card) => {
-                const isActive = card.id === activeCard?.id;
-                const completion = isActive ? summary?.completionRate ?? 0 : 0;
-                const stuckLabel = isActive && stages.find((stage) => !stage.isCompleted || stage.confusedCount || stage.simplifyCount)
-                  ? `${stages.find((stage) => !stage.isCompleted || stage.confusedCount || stage.simplifyCount)?.step.order}단계`
-                  : card.status === "deployed"
-                    ? "로그 대기"
-                    : "초안";
-                return (
-                <button key={card.id} type="button" onClick={() => setActiveView("cards")}>
-                  <strong>{card.title}</strong>
-                  <span>{card.date}</span>
-                  <meter min="0" max="100" value={completion} />
-                  <em>{stuckLabel}</em>
-                  <b>›</b>
-                </button>
-              );})}
-            </div>
-          </section>
-        </div>
-        <aside className="dhg-side-stack">
-          <section className="dhg-panel dhg-ai-panel">
-            <div className="dhg-panel-head">
-              <h2>AI 추천 지원전략</h2>
-            </div>
-            {(recommendations.length ? recommendations : ["학생 로그가 쌓이면 맞춤 지원전략이 생성됩니다."]).map((body, index) => (
-              <article key={`${body}-${index}`} className="dhg-reco-row numbered">
-                <span>{index + 1}</span>
-                <div>
-                  <strong>{reportData?.report.difficultyTagsJson[index] ?? "지원전략"}</strong>
-                  <p>{body}</p>
-                </div>
-                <button type="button" onClick={() => setActiveView(index === 1 ? "prep" : "reports")}>
-                  보기
-                </button>
-              </article>
-            ))}
-            <button className="dhg-primary" type="button" onClick={() => setActiveView("prep")}>
-              맞춤 활동 카드 만들기
-            </button>
-          </section>
-          <section className="dhg-panel dhg-memo-panel">
-            <div className="dhg-panel-head">
-              <h2>보호자 공유 메모</h2>
-              <button type="button" onClick={() => copyTextToClipboard(parentMemo)}>
-                복사
-              </button>
-            </div>
-            <p>{parentMemo}</p>
-            <small>생성일: {reportData?.report.createdAt.slice(0, 10) ?? "로그 대기"} · 로그 기반 메모예요.</small>
-          </section>
-        </aside>
-      </div>
+              <ul className="mvp-recommendations">
+                {report.report.aiRecommendationsJson.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <div className="mvp-parent-memo">
+                <strong>보호자 공유 메모</strong>
+                <p>{report.report.parentMemo}</p>
+              </div>
+            </section>
+          </div>
+        </>
+      ) : (
+        <EmptyState title="아직 분석할 로그가 없습니다" body="학생 화면에서 한 단계 이상 수행하면 리포트가 갱신됩니다." />
+      )}
     </section>
-  );
-}
-
-function StudentPhonePreview({ card, step }: { card?: ExecutionCard; step?: LessonStep }) {
-  return (
-    <div className="dhg-phone-frame compact">
-      <div className="dhg-phone-top">
-        <Brand />
-        <Bell size={20} aria-hidden="true" />
-      </div>
-      <div className="dhg-phone-progress">
-        <span>과제 1/4</span>
-        <b />
-        <b className="is-active" />
-        <b />
-        <b />
-      </div>
-      <section className="dhg-mobile-card">
-        <p>
-          <span>{card?.subject ?? "과목"}</span>
-          <span>{card?.grade ?? "학년"}</span>
-        </p>
-        <h2>{card?.title ?? "실행카드"}</h2>
-      </section>
-      <section className="dhg-mobile-task-card">
-        <span className="dhg-step-badge">2단계</span>
-        <h3>{step?.title ?? "단계를 선택해 주세요."}</h3>
-        <VisualHintView hint={step?.visualHint ?? { type: "text_only", data: { text: "시각 단서가 여기에 표시됩니다." } }} />
-        <aside>
-          <strong>힌트</strong>
-          <p>{step?.helpSentence ?? "학생에게 보여줄 힌트가 여기에 표시됩니다."}</p>
-        </aside>
-        <button type="button" disabled>완료했어요</button>
-      </section>
-    </div>
   );
 }
 
@@ -1974,963 +1562,557 @@ export function TeacherDemoApp({
   initialCardId?: string;
   initialStudentId?: string;
 }) {
-  const { snapshot, setSnapshot, requestState, error, setError, setRequestState, hasLoaded, refreshSnapshot } = useDemoSnapshot(initialCardId);
-  const [activeView, setActiveView] = useState<TeacherView>(initialView);
   const router = useRouter();
+  const [view, setView] = useState<TeacherView>(initialView);
+  const [context, setContext] = useState<ApiClassroomContext | null>(null);
+  const [bundles, setBundles] = useState<CardBundle[]>([]);
+  const [activeCardId, setActiveCardId] = useState(initialCardId ?? "");
+  const [state, setState] = useState<LoadState>("loading");
+  const [error, setError] = useState("");
+
+  async function refresh(preferredCardId = activeCardId) {
+    setState("loading");
+    try {
+      const [contextResult, lessonResult, cardResult] = await Promise.all([
+        requestJson<ApiClassroomContext>("/api/classroom/context"),
+        requestJson<{ lessons: ApiLesson[] }>("/api/lessons"),
+        requestJson<{ cards: ApiExecutionCard[] }>("/api/execution-cards"),
+      ]);
+      const lessonMap = new Map(lessonResult.lessons.map((lesson) => [lesson.id, lesson]));
+      const details = await Promise.all(
+        cardResult.cards.map(async (card) => {
+          const detail = await requestJson<{ card: ApiExecutionCard; steps: ApiExecutionStep[] }>(
+            `/api/execution-cards/${encodeURIComponent(card.id)}`,
+          );
+          return { card: detail.card, steps: detail.steps, lesson: lessonMap.get(detail.card.lessonId) ?? null };
+        }),
+      );
+      setContext(contextResult);
+      setBundles(details);
+      const nextActive = preferredCardId && details.some((bundle) => bundle.card.id === preferredCardId)
+        ? preferredCardId
+        : contextResult.activeCardId && details.some((bundle) => bundle.card.id === contextResult.activeCardId)
+          ? contextResult.activeCardId
+          : details[0]?.card.id ?? "";
+      setActiveCardId(nextActive);
+      setError("");
+      setState("idle");
+    } catch (error) {
+      setState("error");
+      setError(error instanceof Error ? error.message : "초기 데이터를 불러오지 못했습니다.");
+    }
+  }
 
   useEffect(() => {
-    setActiveView(initialView);
-  }, [initialView]);
+    setView(initialView);
+    if (initialCardId) setActiveCardId(initialCardId);
+  }, [initialView, initialCardId]);
 
-  function navigateTeacher(view: TeacherView, cardId = snapshot.activeCardId) {
-    setActiveView(view);
-    router.push(teacherRoute(view, cardId));
-  }
+  useEffect(() => {
+    void refresh(initialCardId);
+  }, []);
 
-  async function createQuickCard(input: LessonPrepPayload | string = snapshot.lessonTopic) {
-    setRequestState("saving");
-    try {
-      const activeCard = snapshot.cards.find((card) => card.id === snapshot.activeCardId) ?? snapshot.cards[0];
-      const payload: LessonPrepPayload =
-        typeof input === "string"
-          ? {
-              schoolId: snapshot.schoolId,
-              classroomId: snapshot.classroomId,
-              grade: activeCard?.grade?.replace(/^초/, "") || "4",
-              classNo: snapshot.className.match(/(\d+)반/)?.[1] ?? "2",
-              subject: activeCard?.subject || "수학",
-              lessonDate: normalizeLessonDateForInput(snapshot.dateLabel),
-              topic: input,
-              lessonContent: activeCard?.goal || input,
-              assignmentInstruction: activeCard?.easyExplanation || input,
-              selectedStandardId: activeCard?.standard.id ?? activeCard?.standard.code ?? undefined,
-              selectedStandardCode: activeCard?.standard.code ?? undefined,
-              selectedStandardText: activeCard?.standard.text,
-              selectedStandardSourceType: activeCard?.standard.sourceType ?? undefined,
-              selectedStandardSourceName: activeCard?.standard.sourceName ?? undefined,
-              selectedStandardSourceUrl: activeCard?.standard.sourceUrl ?? undefined,
-              selectedStandardLicense: activeCard?.standard.license ?? undefined,
-              supportOptions: ["easy_language", "step_breakdown", "visual_hint"],
-            }
-          : input;
-      const gradeBand = gradeBandFromGrade(payload.grade);
-      const lessonResult = await requestJson<{ lesson: ApiLesson }>("/api/lessons", {
-        method: "POST",
-        body: JSON.stringify({
-          teacherId: snapshot.teacherId,
-          classroomId: payload.classroomId,
-          schoolId: payload.schoolId,
-          subject: payload.subject,
-          gradeBand,
-          topic: payload.topic,
-          title: payload.topic,
-          lessonDate: payload.lessonDate,
-          lessonContent: payload.lessonContent,
-          assignmentInstruction: payload.assignmentInstruction,
-          selectedStandardId: payload.selectedStandardId,
-          selectedStandardText: payload.selectedStandardText,
-          selectedStandardSourceType: payload.selectedStandardSourceType,
-          selectedStandardSourceName: payload.selectedStandardSourceName,
-          selectedStandardSourceUrl: payload.selectedStandardSourceUrl,
-          selectedStandardLicense: payload.selectedStandardLicense,
-          supportOptions: payload.supportOptions,
-          objectives: [payload.selectedStandardText || payload.topic],
-        }),
-      });
-      const saved = await requestJson<{ card: ApiExecutionCard; steps: ApiExecutionStep[] }>("/api/execution-cards/generate", {
-        method: "POST",
-        body: JSON.stringify({
-          lessonId: lessonResult.lesson.id,
-          subject: payload.subject,
-          grade: gradeBand,
-          gradeBand,
-          topic: payload.topic,
-          title: payload.topic,
-          lessonContent: payload.lessonContent,
-          assignmentInstruction: payload.assignmentInstruction,
-          selectedStandardId: payload.selectedStandardId,
-          selectedStandardCode: payload.selectedStandardCode,
-          selectedStandardText: payload.selectedStandardText,
-          selectedStandardSourceType: payload.selectedStandardSourceType,
-          selectedStandardSourceName: payload.selectedStandardSourceName,
-          selectedStandardSourceUrl: payload.selectedStandardSourceUrl,
-          selectedStandardLicense: payload.selectedStandardLicense,
-          supportOptions: payload.supportOptions,
-          objectives: [payload.selectedStandardText || payload.topic],
-          save: true,
-        }),
-      });
-      const card = mapApiCard(saved.card, lessonResult.lesson, saved.steps);
-      setSnapshot((current) => ({
-        ...current,
-        activeCardId: card.id,
-        lessonTopic: payload.topic,
-        cards: [card, ...current.cards.filter((item) => item.id !== card.id)],
-      }));
-      navigateTeacher("cards", card.id);
-      setError("");
-      setRequestState("idle");
-    } catch (reason) {
-      setError(`실행카드 생성 요청 실패: ${(reason as Error).message}`);
-      setRequestState("error");
+  function move(next: TeacherView, cardId?: string) {
+    setView(next);
+    if (cardId) setActiveCardId(cardId);
+    if (next === "dashboard") router.push("/teacher/dashboard");
+    if (next === "prep") router.push("/teacher/lessons/new");
+    if (next === "cards") router.push(cardId ? `/teacher/cards/${encodeURIComponent(cardId)}/edit` : "/teacher/cards");
+    if (next === "reports") {
+      const studentId = initialStudentId ?? context?.students[0]?.id;
+      router.push(studentId ? `/teacher/reports/${encodeURIComponent(studentId)}` : "/teacher/reports");
     }
   }
 
-  async function persistCard(kind: "save" | "deploy") {
-    const card = snapshot.cards.find((item) => item.id === snapshot.activeCardId);
-    if (!card) return;
-    setRequestState("saving");
-    try {
-      const payload = {
-        lessonId: card.lessonId,
-        title: card.title,
-        goal: card.goal,
-        subject: card.subject,
-        grade: card.grade.replace(/^초/, ""),
-        topic: card.topic,
-        standard: {
-          id: card.standard.id ?? undefined,
-          code: card.standard.code ?? undefined,
-          text: card.standard.text,
-          sourceType: card.standard.sourceType ?? undefined,
-          sourceName: card.standard.sourceName ?? undefined,
-          sourceUrl: card.standard.sourceUrl ?? undefined,
-          license: card.standard.license ?? undefined,
-        },
-        keywords: card.keywords,
-        easyExplanation: card.easyExplanation,
-        review: card.review,
-        steps: card.steps.map((step, index) => ({
-          id: step.id,
-          order: index + 1,
-          stepText: step.title,
-          visualHint: step.visualHint,
-          microQuiz: {
-            question: step.checkQuestion,
-            choices: step.choices.length ? step.choices : ["확인했어요"],
-            answer: step.answer || step.choices[0] || "확인했어요",
-            explanation: step.quizExplanation ?? undefined,
-          },
-          helpSentence: step.helpSentence,
-          teacherTip: step.teacherTip,
-        })),
-        status: kind === "deploy" ? "published" : "draft",
-      };
-      const saved = await requestJson<{ card: ApiExecutionCard; steps: ApiExecutionStep[] }>(`/api/execution-cards/${encodeURIComponent(card.id)}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
-      if (kind === "deploy") {
-        await requestJson(`/api/execution-cards/${encodeURIComponent(card.id)}/publish`, { method: "POST" });
-      }
-      const mapped = mapApiCard(
-        { ...saved.card, status: kind === "deploy" ? "published" : saved.card.status },
-        null,
-        saved.steps,
-      );
-      setSnapshot((current) => ({
-        ...current,
-        cards: current.cards.map((item) => (item.id === current.activeCardId ? mapped : item)),
-      }));
-      setError("");
-      setRequestState("idle");
-    } catch (reason) {
-      setError(`${kind === "deploy" ? "배포" : "저장"} 요청 실패: ${(reason as Error).message}`);
-      setRequestState("error");
-    }
-  }
-
-  let view: React.ReactNode;
-  if (activeView === "prep") view = <TeacherPrep snapshot={snapshot} onGenerate={createQuickCard} isSaving={requestState === "saving"} />;
-  else if (activeView === "cards")
-    view = (
-      <TeacherCards
-        snapshot={snapshot}
-        setSnapshot={setSnapshot}
-        onPersist={persistCard}
-        onRegenerate={() => createQuickCard(snapshot.lessonTopic)}
-        isSaving={requestState === "saving"}
-      />
-    );
-  else if (activeView === "reports") view = <TeacherReports snapshot={snapshot} setActiveView={navigateTeacher} studentId={initialStudentId} />;
-  else view = <TeacherDashboard snapshot={snapshot} setActiveView={navigateTeacher} refreshSnapshot={() => refreshSnapshot(snapshot.activeCardId)} />;
+  const activeBundle = bundles.find((bundle) => bundle.card.id === activeCardId) ?? bundles[0] ?? null;
 
   return (
-    <main className="dhg-app dhg-teacher-app">
-      <TeacherSidebar activeView={activeView} setActiveView={navigateTeacher} snapshot={snapshot} />
-      <div className="dhg-main">
-        <LoadingStrip active={requestState === "loading"} />
-        <ErrorBanner message={error} onRetry={() => window.location.reload()} />
-        {hasLoaded ? (
-          <>
-            <TeacherHeader snapshot={snapshot} onOpenSetup={() => navigateTeacher("dashboard")} />
-            {view}
-          </>
-        ) : requestState === "loading" ? null : (
-          <section className="dhg-teacher-page">
-            <div className="dhg-empty">
-              <strong>데이터를 불러오지 못했습니다.</strong>
-              <p>API 오류를 확인한 뒤 다시 시도해 주세요.</p>
-            </div>
-          </section>
-        )}
-      </div>
+    <main className="mvp-app mvp-teacher-app">
+      <TeacherNav view={view} onMove={move} />
+      <section className="mvp-teacher-main">
+        <TopBar context={context} state={state} onRefresh={() => void refresh(activeCardId)} />
+        <ErrorBanner message={error} onRetry={() => void refresh(activeCardId)} />
+        {view === "dashboard" ? (
+          <DashboardView context={context} bundles={bundles} state={state} onMove={move} onRefresh={() => refresh(activeCardId)} onError={setError} />
+        ) : null}
+        {view === "prep" ? (
+          <LessonPrepView
+            context={context}
+            onError={setError}
+            onGenerated={async (cardId) => {
+              await refresh(cardId);
+              move("cards", cardId);
+            }}
+          />
+        ) : null}
+        {view === "cards" ? (
+          <CardEditorView bundle={activeBundle} onError={setError} onMove={move} onSaved={(cardId) => refresh(cardId)} />
+        ) : null}
+        {view === "reports" ? (
+          <ReportsView context={context} bundles={bundles} initialStudentId={initialStudentId} onError={setError} />
+        ) : null}
+      </section>
     </main>
   );
 }
 
-function StudentTop({ compact = false }: { compact?: boolean }) {
+function StudentTop({ student }: { student?: ApiStudent | null }) {
   return (
-    <header className={`dhg-student-top ${compact ? "compact" : ""}`}>
-      <Brand />
-      <button type="button" aria-label="알림">
-        ♢
-      </button>
+    <header className="mvp-phone-top">
+      <div className="mvp-brand">
+        <img src={DEFAULT_ASSETS.logo} alt="" />
+        <strong>다음한걸음</strong>
+      </div>
+      <span>{student?.nickname ?? "학생"}</span>
     </header>
   );
 }
 
-function StudentBottomNav({ activeView, setActiveView }: { activeView: StudentView; setActiveView: (view: StudentView) => void }) {
-  const items: Array<[StudentView, string, string]> = [
-    ["preview", "⌂", "홈"],
-    ["task", "▣", "과제"],
-    ["review", "↺", "복습"],
-    ["review", "▥", "내 기록"],
-  ];
-
+function StudentBottom({
+  active,
+  onMove,
+}: {
+  active: StudentView;
+  onMove: (view: StudentView) => void;
+}) {
   return (
-    <nav className="dhg-student-nav" aria-label="학생 하단 메뉴">
-      {items.map(([id, icon, label], index) => (
-        <button key={`${id}-${label}-${index}`} className={activeView === id ? "is-active" : ""} type="button" onClick={() => setActiveView(id)}>
-          <span>{icon}</span>
-          {label}
+    <nav className="mvp-phone-bottom">
+      {[
+        ["task", "과제", ClipboardList],
+        ["review", "돌아보기", BarChart3],
+      ].map(([id, label, Icon]) => (
+        <button key={id as string} className={active === id ? "is-active" : ""} onClick={() => onMove(id as StudentView)} type="button">
+          <Icon size={19} />
+          {label as string}
         </button>
       ))}
     </nav>
   );
 }
 
-function StudentSwitcher({
-  students,
-  selectedStudentId,
-  onChange,
-}: {
-  students: ApiStudent[];
-  selectedStudentId: string;
-  onChange: (studentId: string) => void;
-}) {
-  if (students.length < 2) return null;
-  return (
-    <div className="dhg-student-switcher" aria-label="학생 선택">
-      {students.map((student) => (
-        <button
-          key={student.id}
-          className={student.id === selectedStudentId ? "is-active" : ""}
-          type="button"
-          onClick={() => onChange(student.id)}
-        >
-          {student.nickname}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function VisualHintView({ hint }: { hint: LessonStep["visualHint"] }) {
-  const data = hint.data ?? {};
+function VisualHintView({ hint, compact = false }: { hint?: VisualHint | null; compact?: boolean }) {
+  if (!hint) return null;
+  if (hint.type === "image_asset" && hint.assetUrl) {
+    return <img className="mvp-hint-image" src={hint.assetUrl} alt={hint.alt ?? "시각 단서"} />;
+  }
   if (hint.type === "rectangle_dimension") {
-    const labels = Array.isArray(data.labels) ? data.labels.map(String) : ["위쪽 변", "옆쪽 변"];
+    const labels = getStepItems(hint.data);
+    const [firstLabel, secondLabel] = labels.length >= 2 ? labels : ["긴 변", "짧은 변"];
     return (
-      <div className="dhg-rectangle-demo" aria-label={hint.alt ?? "도형 치수 시각 단서"}>
-        <b className="width">{labels[0] ?? "위쪽 변"}</b>
-        <b className="height">{labels[1] ?? "옆쪽 변"}</b>
+      <div className={compact ? "mvp-visual is-compact" : "mvp-visual"}>
+        <svg viewBox="0 0 320 180" role="img" aria-label={hint.alt ?? "도형 시각 단서"}>
+          <rect x="48" y="58" width="210" height="82" fill="#f8fbff" stroke="#147eea" strokeWidth="4" rx="5" />
+          <line x1="52" y1="38" x2="254" y2="38" stroke="#147eea" strokeWidth="4" markerEnd="url(#arrow)" markerStart="url(#arrow)" />
+          <line x1="278" y1="62" x2="278" y2="136" stroke="#00a6a8" strokeWidth="4" markerEnd="url(#arrow)" markerStart="url(#arrow)" />
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#147eea" />
+            </marker>
+          </defs>
+          <text x="155" y="28" textAnchor="middle" fill="#147eea" fontWeight="800" fontSize="22">{firstLabel}</text>
+          <text x="300" y="106" textAnchor="middle" fill="#00a6a8" fontWeight="800" fontSize="22">{secondLabel}</text>
+        </svg>
+      </div>
+    );
+  }
+  if (hint.type === "number_line") {
+    return (
+      <div className={compact ? "mvp-visual is-compact" : "mvp-visual"}>
+        <svg viewBox="0 0 320 120" role="img" aria-label={hint.alt ?? "수직선 시각 단서"}>
+          <line x1="38" y1="64" x2="282" y2="64" stroke="#147eea" strokeWidth="5" strokeLinecap="round" />
+          {[0, 1, 2, 3, 4].map((item) => (
+            <g key={item}>
+              <line x1={38 + item * 61} y1="52" x2={38 + item * 61} y2="76" stroke="#0f172a" strokeWidth="3" />
+              <text x={38 + item * 61} y="102" textAnchor="middle" fontSize="18" fontWeight="800">
+                {item === 0 ? "0" : `${item}/4`}
+              </text>
+            </g>
+          ))}
+        </svg>
       </div>
     );
   }
   if (hint.type === "sequence_checklist") {
-    const items = Array.isArray(data.items) ? data.items.map(String) : [];
+    const items = getStepItems(hint.data);
     return (
-      <ol className="dhg-visual-list">
-        {items.map((item, index) => (
-          <li key={`${item}-${index}`}>{item}</li>
+      <div className="mvp-sequence-hint">
+        {(items.length ? items : ["첫 행동 확인", "다음 행동 선택", "답 확인"]).slice(0, 5).map((item, index) => (
+          <span key={`${item}-${index}`}>
+            <b>{index + 1}</b>
+            {item}
+          </span>
         ))}
-      </ol>
-    );
-  }
-  if (hint.type === "number_line") {
-    const start = typeof data.start === "number" ? data.start : 0;
-    const end = typeof data.end === "number" ? data.end : 10;
-    return (
-      <div className="dhg-number-line" aria-label={hint.alt ?? "수직선"}>
-        <span>{start}</span>
-        <b />
-        <span>{end}</span>
       </div>
     );
   }
-  if (hint.type === "image_asset" && hint.assetUrl) {
-    return <Image className="dhg-visual-asset" src={hint.assetUrl} alt={hint.alt ?? ""} width={240} height={150} />;
-  }
-  return <div className="dhg-text-visual">{typeof data.text === "string" ? data.text : hint.alt ?? "단서를 확인해요."}</div>;
+  const text = getHintText(hint.data);
+  return <div className="mvp-text-hint">{text || hint.alt || "이 단계에서 볼 단서를 확인해요."}</div>;
 }
 
 function StudentTaskScreen({
-  setActiveView,
-  cardTitle,
-  subject,
-  grade,
-  supportOptions,
-  keywords,
-  easyExplanation,
-  stepCount,
-  currentStepIndex,
-  onSelectStep,
-  stepText,
-  visualHint,
-  helpSentence,
-  askTeacherSentence,
-  quiz,
-  assignmentInstruction,
-  completeStep,
-  requestHelp,
-  requestSimplify,
-  requestHelpSentence,
-  answerQuiz,
-  helpCount,
-  homeMission,
+  task,
+  reload,
+  goReview,
+  onError,
 }: {
-  setActiveView: (view: StudentView) => void;
-  cardTitle: string;
-  subject: string;
-  grade: string;
-  supportOptions: string[];
-  keywords: Array<{ word: string; easyMeaning: string }>;
-  easyExplanation: string;
-  stepCount: number;
-  currentStepIndex: number;
-  onSelectStep: (index: number) => void;
-  stepText: string;
-  visualHint: LessonStep["visualHint"];
-  helpSentence: string;
-  askTeacherSentence: string;
-  quiz: { question: string; choices: string[]; answer: string };
-  assignmentInstruction?: string | null;
-  completeStep: () => void;
-  requestHelp: () => void;
-  requestSimplify: () => void;
-  requestHelpSentence: () => void;
-  answerQuiz: (answer: string) => void;
-  helpCount: number;
-  homeMission?: string | null;
+  task: ApiStudentTask;
+  reload: () => Promise<void>;
+  goReview: () => void;
+  onError: (message: string) => void;
 }) {
-  const [answer, setAnswer] = useState("");
-  const profile = normalizeSupportOptions(supportOptions);
-  const showVisualFirst = hasSupportOption(profile, "visual_hint");
-  const showKeywords = hasSupportOption(profile, "easy_language") && keywords.length > 0;
-  const showHelpSentence = hasSupportOption(profile, "help_sentence");
-  const showRepeatCheck = hasSupportOption(profile, "repeat_check");
-  const showLifeMission = hasSupportOption(profile, "life_example") && homeMission;
+  const completed = new Set(task.logs.filter((log) => log.eventType === "completed").map((log) => log.stepId));
+  const currentIndex = Math.max(0, task.steps.findIndex((step) => !completed.has(step.id)));
+  const allDone = task.steps.length > 0 && task.steps.every((step) => completed.has(step.id));
+  const step = allDone ? task.steps[task.steps.length - 1] : task.steps[currentIndex] ?? task.steps[0];
+  const [selectedAnswer, setSelectedAnswer] = useState("");
+  const [feedback, setFeedback] = useState("");
+  const [voiceState, setVoiceState] = useState("");
+  const [busy, setBusy] = useState("");
 
   useEffect(() => {
-    setAnswer("");
-  }, [currentStepIndex, stepText]);
+    if (!step?.id || allDone) return;
+    const hasStarted = task.logs.some((log) => log.stepId === step.id && log.eventType === "started");
+    if (hasStarted) return;
+    void requestJson(`/api/student/tasks/${task.card.id}/steps/${step.id}/start${studentQuery(task.studentId)}`, { method: "POST" }).catch(() => undefined);
+  }, [task.card.id, task.studentId, task.logs, step?.id, allDone]);
 
-  return (
-    <section className="dhg-student-screen">
-      <StudentTop />
-      <div className={`dhg-task-progress ${hasSupportOption(profile, "step_breakdown") ? "is-step-focused" : ""}`}>
-        <strong>
-          과제 <span>{currentStepIndex + 1}</span>/{stepCount}
-        </strong>
-        {Array.from({ length: stepCount }).map((_, index) => (
-          <button
-            key={index + 1}
-            className={index === currentStepIndex ? "is-active" : index < currentStepIndex ? "is-done" : ""}
-            type="button"
-            onClick={() => onSelectStep(index)}
-          >
-            <b>{index + 1}</b>
-            <span>{["읽기", "이해하기", "연습하기", "마무리"][index] ?? `${index + 1}단계`}</span>
-          </button>
-        ))}
-      </div>
-      <section className="dhg-mobile-card">
-        <p>
-          <span>{subject}</span>
-          <span>{grade}</span>
-        </p>
-        <h1>{cardTitle}</h1>
-        <Image className="dhg-mascot-asset" src="/assets/generated/student-mascot.png" alt="" width={108} height={108} />
-      </section>
-      <section className="dhg-student-assignment">
-        <strong>선생님이 배포한 과제</strong>
-        <p>{assignmentInstruction || "선생님이 만든 실행카드의 단계를 차례대로 해봅니다."}</p>
-      </section>
-      {showKeywords ? (
-        <section className="dhg-support-card easy-language">
-          <h2>쉬운 말로 먼저 볼게요</h2>
-          <p>{easyExplanation}</p>
-          <div>
-            {keywords.slice(0, 4).map((keyword) => (
-              <span key={keyword.word}>
-                <b>{keyword.word}</b>
-                {keyword.easyMeaning}
-              </span>
-            ))}
-          </div>
-        </section>
-      ) : null}
-      <section className="dhg-mobile-task-card">
-        <span className="dhg-step-badge">{currentStepIndex + 1}단계</span>
-        <small className="dhg-current-task-label">지금 할 일</small>
-        <h2>{stepText}</h2>
-        {showVisualFirst ? <VisualHintView hint={visualHint} /> : null}
-        <aside>
-          <strong>힌트</strong>
-          <p>{helpSentence}</p>
-        </aside>
-        {!showVisualFirst ? <VisualHintView hint={visualHint} /> : null}
-        <button type="button" onClick={completeStep}>
-          완료했어요
-        </button>
-        <div className="dhg-mobile-actions">
-          <button type="button" onClick={requestHelp}>
-            모르겠어요 {helpCount > 0 ? helpCount : ""}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              requestSimplify();
-            }}
-          >
-            다시 쉽게 말해줘
-          </button>
-        </div>
-      </section>
-      {showHelpSentence ? (
-        <button className="dhg-question-card is-emphasis" type="button" onClick={requestHelpSentence}>
-          <span>•••</span>
-          <strong>선생님께 이렇게 말할 수 있어요</strong>
-          <small>{askTeacherSentence}</small>
-          <b>›</b>
-        </button>
-      ) : (
-        <button className="dhg-question-card" type="button" onClick={requestHelpSentence}>
-          <span>•••</span>
-          <strong>도움 문장 보기</strong>
-          <small>{askTeacherSentence}</small>
-          <b>›</b>
-        </button>
-      )}
-      <section className={`dhg-quiz-card ${showRepeatCheck ? "is-repeat" : ""}`}>
-        <h2>{showRepeatCheck ? "한 번 더 확인해볼게요" : "확인해볼게요"}</h2>
-        <p>{quiz.question}</p>
-        <div>
-          {(quiz.choices.length ? quiz.choices : ["확인했어요", "다시 볼래요"]).map((item) => (
-            <button
-              key={item}
-              className={answer === item ? "is-selected" : ""}
-              type="button"
-              onClick={() => {
-                setAnswer(item);
-                answerQuiz(item);
-              }}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-      </section>
-      {showLifeMission ? (
-        <section className="dhg-support-card life-mission">
-          <h2>생활 속 미션</h2>
-          <p>{homeMission}</p>
-        </section>
-      ) : null}
-      <button className="dhg-cheer-card" type="button" onClick={() => setActiveView("review")}>
-        잘하고 있어요! 한 걸음씩 차근차근 해봐요! 💙
-      </button>
-    </section>
-  );
-}
-
-function StudentReviewScreen({
-  setActiveView,
-  cardTitle,
-  subject,
-  grade,
-  stepCount,
-  summary,
-  review,
-}: {
-  setActiveView: (view: StudentView) => void;
-  cardTitle: string;
-  subject: string;
-  grade: string;
-  stepCount: number;
-  summary?: ApiTaskSummary | null;
-  review: ApiExecutionCard["reviewJson"];
-}) {
-  const totalSteps = Math.max(1, stepCount);
-  const completedSteps = Math.round(((summary?.completionRate ?? 0) / 100) * totalSteps);
-  const nextReview = summary?.generatedReviewJson.nextReview?.length ? summary.generatedReviewJson.nextReview : review.nextReview;
-  const askTeacherSentence = summary?.generatedReviewJson.askTeacherSentence || review.askTeacherSentence;
-  const homeMission = summary?.generatedReviewJson.homeMission || review.homeMission;
-  return (
-    <section className="dhg-student-screen review">
-      <StudentTop compact />
-      <div className="dhg-review-hero">
-        <div>
-          <h1>오늘 과제 돌아보기</h1>
-          <p>수고했어요! 오늘의 학습을 함께 돌아볼까요?</p>
-        </div>
-        <span>🔎</span>
-      </div>
-      <button className="dhg-review-task-card" type="button">
-        <span>+−×÷</span>
-        <div>
-          <p>
-            <b>{subject}</b>
-            <b>{grade}</b>
-          </p>
-          <strong>{cardTitle}</strong>
-          <small>{summary ? `${Math.round(summary.totalTimeSeconds / 60)}분 수행` : "아직 수행 기록 없음"}</small>
-        </div>
-        <em>›</em>
-      </button>
-      <section className="dhg-review-summary">
-        <h2>오늘 결과 요약 🎉</h2>
-        <div>
-          <article>
-            <span>✓</span>
-            <p>완료 단계</p>
-            <strong>{completedSteps}/{totalSteps}</strong>
-          </article>
-          <article>
-            <span>•••</span>
-            <p>도움 요청</p>
-            <strong>{summary?.helpRequestCount ?? 0}회</strong>
-          </article>
-          <article>
-            <span>★</span>
-            <p>확인 퀴즈</p>
-            <strong>{summary?.correctQuizCount ?? 0}/{summary?.totalQuizCount ?? 0} 정답</strong>
-          </article>
-        </div>
-      </section>
-      <section className="dhg-pill-section">
-        <h2>오늘 잘한 점 ⭐</h2>
-        <div>
-          {(summary?.generatedReviewJson.goodPoints?.length ? summary.generatedReviewJson.goodPoints : review.goodPoints).map((point) => (
-            <span key={point}>✓ {point}</span>
-          ))}
-        </div>
-      </section>
-      <section className="dhg-next-review">
-        <h2>다음에 다시 보기</h2>
-        <div>
-          {nextReview.map((item) => (
-            <button key={`${item.type}-${item.title}`} type="button" onClick={() => setActiveView(item.type === "practice" ? "task" : "preview")}>
-              {item.title} <small>{item.description}</small>
-            </button>
-          ))}
-        </div>
-      </section>
-      <button
-        className="dhg-question-card"
-        type="button"
-        onClick={() =>
-          copyTextToClipboard(askTeacherSentence)
-        }
-      >
-        <span>•••</span>
-        <strong>선생님께 이렇게 물어보면 좋아요</strong>
-        <small>{askTeacherSentence}</small>
-        <b>›</b>
-      </button>
-      {homeMission ? (
-        <section className="dhg-support-card life-mission">
-          <h2>생활 속 미션</h2>
-          <p>{homeMission}</p>
-        </section>
-      ) : null}
-      <div className="dhg-mobile-cta-stack">
-        <button className="dhg-primary blue" type="button" onClick={() => setActiveView("task")}>
-          다시 연습하기
-        </button>
-        <button className="dhg-secondary blue" type="button" onClick={() => setActiveView("preview")}>
-          복습 카드 보기
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function StudentPreviewScreen({
-  setActiveView,
-  cardTitle,
-  subject,
-  grade,
-  lessonDate,
-  keywords,
-  review,
-}: {
-  setActiveView: (view: StudentView) => void;
-  cardTitle: string;
-  subject: string;
-  grade: string;
-  lessonDate?: string;
-  keywords: Array<{ word: string; easyMeaning: string }>;
-  review: ApiExecutionCard["reviewJson"];
-}) {
-  const [checked, setChecked] = useState<string[]>([]);
-  const todos = [
-    keywords[0] ? `${keywords[0].word} 뜻 확인하기` : `${cardTitle} 핵심 낱말 확인하기`,
-    `${cardTitle} 과제 순서 살펴보기`,
-    "문제 풀고 내 풀이 확인하기",
-  ];
-  const conceptKeywords = keywords.length
-    ? keywords
-    : [{ word: cardTitle, easyMeaning: "선생님이 준비한 과제의 핵심 내용" }];
-  const askQuestions = [
-    review.askTeacherSentence || `선생님, ${cardTitle}에서 어려운 부분을 다시 설명해 주세요.`,
-    `${cardTitle}을/를 비슷한 예로 한 번 더 보여주세요.`,
-  ];
-
-  function toggle(item: string) {
-    setChecked((current) => (current.includes(item) ? current.filter((value) => value !== item) : [...current, item]));
-  }
-
-  return (
-    <section className="dhg-student-screen preview">
-      <StudentTop />
-      <p className="dhg-date-line">▣ {(lessonDate ?? new Date().toISOString().slice(0, 10)).replaceAll("-", ".")}</p>
-      <div className="dhg-preview-title">
-        <h1>내일 수업 미리보기</h1>
-        <p>내일 배울 내용을 미리 확인해봐요.</p>
-        <Image src="/assets/generated/student-mascot.png" alt="" width={140} height={140} />
-      </div>
-      <section className="dhg-mobile-card">
-        <p>
-          <span>{subject}</span>
-          <span>{grade}</span>
-        </p>
-        <h2>{cardTitle}</h2>
-      </section>
-      <section className="dhg-concept-card">
-        <h2>먼저 알아두기</h2>
-        <div>
-          {conceptKeywords.map((keyword) => (
-            <article key={keyword.word}>
-              <strong>{keyword.word}</strong>
-              <p>{keyword.easyMeaning}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-      <section className="dhg-todo-card">
-        <h2>내일 수업에서 할 일</h2>
-        {todos.map((item, index) => (
-          <button key={item} type="button" onClick={() => toggle(item)}>
-            <span>{index + 1}</span>
-            <strong>{item}</strong>
-            <b className={checked.includes(item) ? "is-checked" : ""}>✓</b>
-          </button>
-        ))}
-      </section>
-      <section className="dhg-question-list">
-        <h2>어려우면 이렇게 물어봐요</h2>
-        {askQuestions.map((question) => (
-          <button key={question} type="button" onClick={() => copyTextToClipboard(question)}>
-            {question} <span>›</span>
-          </button>
-        ))}
-      </section>
-      {review.homeMission ? (
-        <section className="dhg-support-card life-mission">
-          <h2>생활 속 미션</h2>
-          <p>{review.homeMission}</p>
-        </section>
-      ) : null}
-      <button className="dhg-cheer-card" type="button" onClick={() => setActiveView("task")}>
-        내일도 차근차근, 함께 해봐요! 💙
-      </button>
-    </section>
-  );
-}
-
-export function StudentDemoApp({ initialView = "task", initialCardId }: { initialView?: StudentView; initialCardId?: string }) {
-  const [activeView, setActiveView] = useState<StudentView>(initialView);
-  const [requestState, setRequestState] = useState<RequestState>("loading");
-  const [error, setError] = useState("");
-  const [completedSteps, setCompletedSteps] = useState(0);
-  const [helpCount, setHelpCount] = useState(0);
-  const [task, setTask] = useState<ApiStudentTask | null>(null);
-  const [students, setStudents] = useState<ApiStudent[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("studentId") ?? "",
-  );
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const router = useRouter();
-
-  useEffect(() => {
-    setActiveView(initialView);
-  }, [initialView]);
-
-  function navigateStudent(view: StudentView) {
-    setActiveView(view);
-    router.push(withStudentQuery(studentRoute(view, task?.card.id), selectedStudentId));
-  }
-
-  function switchStudent(studentId: string) {
-    setSelectedStudentId(studentId);
-    setTask(null);
-    setRequestState("loading");
-    setCurrentStepIndex(0);
-    setCompletedSteps(0);
-    setHelpCount(0);
-    router.push(withStudentQuery(studentRoute(activeView, task?.card.id ?? initialCardId), studentId));
-  }
-
-  useEffect(() => {
-    const query = selectedStudentId ? `?studentId=${encodeURIComponent(selectedStudentId)}` : "";
-    requestJson<{ studentId: string | null; student?: ApiStudent | null; students?: ApiStudent[]; tasks?: ApiStudentTask[] } & Partial<ApiStudentTask>>(
-      initialCardId ? `/api/student/tasks/${encodeURIComponent(initialCardId)}${query}` : `/api/student/tasks${query}`,
-    )
-      .then((data) => {
-        setStudents(data.students ?? []);
-        if (data.studentId && data.studentId !== selectedStudentId) setSelectedStudentId(data.studentId);
-        const firstTask = initialCardId
-          ? ({
-              studentId: data.studentId,
-              student: data.student ?? null,
-              students: data.students ?? [],
-              card: data.card,
-              lesson: data.lesson ?? null,
-              steps: data.steps ?? [],
-              summary: data.summary,
-            } as ApiStudentTask)
-          : data.tasks?.[0];
-        if (!firstTask) {
-          setTask(null);
-          setRequestState("idle");
-          setError("");
-          return;
-        }
-        setTask(firstTask);
-        const stepTotal = Math.max(1, firstTask.steps.length);
-      const completed = firstTask.summary ? Math.round((firstTask.summary.completionRate / 100) * stepTotal) : 0;
-      setCompletedSteps(completed);
-      setHelpCount(firstTask.summary?.helpRequestCount ?? 0);
-      setCurrentStepIndex(Math.min(Math.max(0, completed), Math.max(0, firstTask.steps.length - 1)));
-        setRequestState("idle");
-        setError("");
-      })
-      .catch((reason: Error) => {
-        setRequestState("error");
-        setError(`${initialCardId ? `/api/student/tasks/${initialCardId}` : "/api/student/tasks"} 요청 실패: ${reason.message}`);
-      });
-  }, [initialCardId, selectedStudentId]);
-
-  const currentStep = task?.steps[currentStepIndex] ?? task?.steps[0] ?? null;
-  const taskCardId = task?.card.id;
-  const currentStepId = currentStep?.id;
-
-  useEffect(() => {
-    if (!taskCardId || !currentStepId || activeView !== "task") return;
-    requestJson(withStudentQuery(`/api/student/tasks/${encodeURIComponent(taskCardId)}/steps/${encodeURIComponent(currentStepId)}/start`, selectedStudentId), {
-      method: "POST",
-    }).catch((reason: Error) => {
-      setError(`과제 시작 로그 저장 실패: ${reason.message}`);
-    });
-  }, [activeView, currentStepId, selectedStudentId, taskCardId]);
-
-  if (!task) {
-    const noRegisteredStudents = requestState !== "loading" && !error && students.length === 0;
-    return (
-      <main className="dhg-student-app">
-        <div className="dhg-student-device">
-          <LoadingStrip active={requestState === "loading"} />
-          <ErrorBanner message={error} />
-          <StudentSwitcher students={students} selectedStudentId={selectedStudentId} onChange={switchStudent} />
-          {requestState !== "loading" && !error ? (
-            <div className="dhg-empty">
-              <strong>{noRegisteredStudents ? "등록된 학생이 없습니다." : "배포된 과제가 없습니다."}</strong>
-              <p>
-                {noRegisteredStudents
-                  ? "선생님 화면에서 학생을 먼저 등록한 뒤 과제를 배포해 주세요."
-                  : "선생님 화면에서 실행카드를 먼저 배포해 주세요."}
-              </p>
-            </div>
-          ) : null}
-          <StudentBottomNav activeView={activeView} setActiveView={navigateStudent} />
-        </div>
-      </main>
-    );
-  }
-
-  if (!currentStep) {
-    return (
-      <main className="dhg-student-app">
-        <div className="dhg-student-device">
-          <ErrorBanner message="과제 단계가 없습니다. 실행카드를 다시 생성해 주세요." />
-          <StudentBottomNav activeView={activeView} setActiveView={navigateStudent} />
-        </div>
-      </main>
-    );
-  }
-  const currentQuiz = currentStep.microQuizJson;
-  const loadedTask = task;
-  const loadedStep = currentStep;
-
-  function updateSummary(summary?: ApiTaskSummary) {
-    if (!summary) return;
-    setTask((current) => (current ? { ...current, summary } : current));
-    setCompletedSteps(Math.round((summary.completionRate / 100) * Math.max(1, loadedTask.steps.length || 4)));
-    setHelpCount(summary.helpRequestCount);
-  }
-
-  async function completeStep() {
+  async function action(kind: "confused" | "simplify" | "help-sentence" | "complete") {
+    if (!step) return;
+    setBusy(kind);
     try {
-      const result = await requestJson<{ summary: ApiTaskSummary }>(
-        withStudentQuery(`/api/student/tasks/${encodeURIComponent(loadedTask.card.id)}/steps/${encodeURIComponent(loadedStep.id)}/complete`, selectedStudentId),
+      const result = await requestJson<{ easyText?: string; helpSentence?: string }>(
+        `/api/student/tasks/${task.card.id}/steps/${step.id}/${kind}${studentQuery(task.studentId)}`,
         { method: "POST" },
       );
-      updateSummary(result.summary);
-      if (currentStepIndex < loadedTask.steps.length - 1) {
-        setCurrentStepIndex((index) => Math.min(index + 1, loadedTask.steps.length - 1));
-      } else {
-        navigateStudent("review");
+      if (kind === "simplify") setFeedback(result.easyText ?? "한 번에 한 행동만 확인해요.");
+      if (kind === "help-sentence") setFeedback(result.helpSentence ?? step.helpSentence);
+      if (kind === "confused") setFeedback("괜찮아요. 지금 막힌 순간이 선생님 리포트에 기록됐어요.");
+      if (kind === "complete") {
+        setFeedback("");
+        setSelectedAnswer("");
       }
-      setError("");
-    } catch (reason) {
-      setError(`진도 저장 실패: ${(reason as Error).message}`);
-    }
-  }
-
-  async function requestHelp() {
-    try {
-      const result = await requestJson<{ summary: ApiTaskSummary }>(
-        withStudentQuery(`/api/student/tasks/${encodeURIComponent(loadedTask.card.id)}/steps/${encodeURIComponent(loadedStep.id)}/confused`, selectedStudentId),
-        { method: "POST" },
-      );
-      updateSummary(result.summary);
-      setError("");
-    } catch (reason) {
-      setError(`도움 요청 저장 실패: ${(reason as Error).message}`);
-    }
-  }
-
-  async function requestSimplify() {
-    try {
-      const result = await requestJson<{ summary: ApiTaskSummary; easyText?: string }>(
-        withStudentQuery(`/api/student/tasks/${encodeURIComponent(loadedTask.card.id)}/steps/${encodeURIComponent(loadedStep.id)}/simplify`, selectedStudentId),
-        { method: "POST" },
-      );
-      updateSummary(result.summary);
-      if (result.easyText) {
-        setTask((current) =>
-          current
-            ? {
-                ...current,
-                steps: current.steps.map((step) => (step.id === loadedStep.id ? { ...step, stepText: result.easyText ?? step.stepText } : step)),
-              }
-            : current,
-        );
+      await reload();
+      onError("");
+      if (kind === "complete" && task.steps.every((item) => item.id === step.id || completed.has(item.id))) {
+        await requestJson(`/api/student/tasks/${task.card.id}/review${studentQuery(task.studentId)}`, { method: "POST" });
+        goReview();
       }
-      setError("");
-    } catch (reason) {
-      setError(`쉬운 설명 요청 실패: ${(reason as Error).message}`);
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "학생 로그 저장에 실패했습니다.");
+    } finally {
+      setBusy("");
     }
   }
 
-  async function requestHelpSentence() {
+  async function submitQuiz(answer: string) {
+    if (!step) return;
+    setSelectedAnswer(answer);
+    setBusy("quiz");
     try {
-      const result = await requestJson<{ summary: ApiTaskSummary; helpSentence?: string }>(
-        withStudentQuery(`/api/student/tasks/${encodeURIComponent(loadedTask.card.id)}/steps/${encodeURIComponent(loadedStep.id)}/help-sentence`, selectedStudentId),
-        { method: "POST" },
-      );
-      updateSummary(result.summary);
-      copyTextToClipboard(result.helpSentence || loadedStep.helpSentence);
-      setError("");
-    } catch (reason) {
-      setError(`도움 문장 로그 저장 실패: ${(reason as Error).message}`);
-    }
-  }
-
-  async function answerQuiz(answer: string) {
-    try {
-      const result = await requestJson<{ summary: ApiTaskSummary; isCorrect: boolean }>(
-        withStudentQuery(`/api/student/tasks/${encodeURIComponent(loadedTask.card.id)}/steps/${encodeURIComponent(loadedStep.id)}/quiz`, selectedStudentId),
+      const result = await requestJson<{ isCorrect: boolean }>(
+        `/api/student/tasks/${task.card.id}/steps/${step.id}/quiz${studentQuery(task.studentId)}`,
         {
           method: "POST",
           body: JSON.stringify({ answer }),
         },
       );
-      updateSummary(result.summary);
-      setError(result.isCorrect ? "" : "퀴즈 답이 맞지 않았어요. 다시 확인해보세요.");
-    } catch (reason) {
-      setError(`퀴즈 저장 실패: ${(reason as Error).message}`);
+      setFeedback(result.isCorrect ? "맞았어요. 이제 완료 버튼을 눌러도 좋아요." : step.microQuizJson.explanation ?? "다시 쉽게 설명을 보고 한 번 더 확인해요.");
+      await reload();
+      onError("");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "퀴즈 응답 저장에 실패했습니다.");
+    } finally {
+      setBusy("");
     }
   }
 
+  async function playVoice() {
+    if (!step?.helpSentence) return;
+    setVoiceState("loading");
+    try {
+      const response = await fetch("/api/voice/tts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: step.helpSentence }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error?.message ?? "음성 생성에 실패했습니다.");
+      }
+      const blob = await response.blob();
+      const audio = new Audio(URL.createObjectURL(blob));
+      await audio.play();
+      setVoiceState("played");
+    } catch (error) {
+      setVoiceState(error instanceof Error ? error.message : "음성 생성에 실패했습니다.");
+    }
+  }
+
+  if (!step) {
+    return <EmptyState title="배포된 단계가 없습니다" body="선생님이 실행카드를 배포하면 여기에 표시됩니다." />;
+  }
+
+  const progress = task.steps.length ? Math.round((completed.size / task.steps.length) * 100) : 0;
+  const supportOptions = normalizeSupportOptions(task.card.supportOptionsJson);
+
+  if (allDone) {
+    return (
+      <section className="mvp-student-complete">
+        <img src={DEFAULT_ASSETS.mascot} alt="" />
+        <h1>오늘 과제를 끝냈어요</h1>
+        <p>완료 기록과 도움 요청 기록으로 복구노트를 만들었습니다.</p>
+        <button className="mvp-primary" onClick={goReview} type="button">
+          돌아보기 열기
+        </button>
+      </section>
+    );
+  }
+
   return (
-    <main className="dhg-student-app">
-      <div className="dhg-student-device">
-        <LoadingStrip active={requestState === "loading"} />
-        <ErrorBanner message={error} />
-        <StudentSwitcher students={students} selectedStudentId={selectedStudentId || task.studentId || ""} onChange={switchStudent} />
-        {activeView === "review" ? (
-          <StudentReviewScreen
-            setActiveView={navigateStudent}
-            cardTitle={task.card.title}
-            subject={task.lesson?.subject ?? task.card.subject}
-            grade={task.lesson?.grade ? gradeBandFromGrade(task.lesson.grade) : task.card.grade}
-            stepCount={task.steps.length}
-            summary={task.summary}
-            review={task.card.reviewJson}
+    <section className="mvp-student-task">
+      <div className="mvp-task-head">
+        <div>
+          <p>{formatDate(task.lesson?.lessonDate)} · {task.card.subject} · {gradeBand(task.card.grade)}</p>
+          <h1>{task.card.title}</h1>
+        </div>
+        <img src={DEFAULT_ASSETS.mascot} alt="" />
+      </div>
+      <div className="mvp-progress">
+        <span style={{ width: `${progress}%` }} />
+      </div>
+      <p className="mvp-progress-label">완료 단계 {completed.size}/{task.steps.length}</p>
+
+      {hasSupportOption(supportOptions, "easy_language") && task.card.keywordsJson.length > 0 ? (
+        <div className="mvp-keywords">
+          {task.card.keywordsJson.slice(0, 3).map((keyword) => (
+            <span key={keyword.word}>
+              <strong>{keyword.word}</strong>
+              {keyword.easyMeaning}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <article className="mvp-current-step">
+        <span>{currentIndex + 1}단계</span>
+        <h2>{step.stepText}</h2>
+        <VisualHintView hint={step.visualHintJson} />
+        {feedback ? <p className="mvp-feedback">{feedback}</p> : null}
+      </article>
+
+      {hasSupportOption(supportOptions, "repeat_check") ? (
+        <section className="mvp-quiz">
+          <h3>{step.microQuizJson.question}</h3>
+          <div>
+            {step.microQuizJson.choices.map((choice) => (
+              <button
+                key={choice}
+                className={selectedAnswer === choice ? "is-selected" : ""}
+                onClick={() => void submitQuiz(choice)}
+                disabled={busy === "quiz"}
+                type="button"
+              >
+                {choice}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {hasSupportOption(supportOptions, "help_sentence") ? (
+        <section className="mvp-help-sentence">
+          <p>선생님께 이렇게 말할 수 있어요</p>
+          <strong>{step.helpSentence}</strong>
+          <div>
+            <button onClick={() => void action("help-sentence")} type="button">
+              <Megaphone size={16} />
+              문장 보기 기록
+            </button>
+            <button onClick={() => void playVoice()} type="button">
+              <Headphones size={16} />
+              도움 문장 듣기
+            </button>
+          </div>
+          {voiceState && voiceState !== "played" && voiceState !== "loading" ? <small>{voiceState}</small> : null}
+          {voiceState === "loading" ? <small>음성을 생성하는 중입니다.</small> : null}
+        </section>
+      ) : null}
+
+      <div className="mvp-student-actions">
+        <button onClick={() => void action("confused")} disabled={Boolean(busy)} type="button">
+          모르겠어요
+        </button>
+        <button onClick={() => void action("simplify")} disabled={Boolean(busy)} type="button">
+          다시 쉽게 말해줘
+        </button>
+        <button className="mvp-primary" onClick={() => void action("complete")} disabled={Boolean(busy)} type="button">
+          완료했어요
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function StudentReviewScreen({ task, reload }: { task: ApiStudentTask; reload: () => Promise<void> }) {
+  const [review, setReview] = useState<ApiTaskSummary | null>(task.summary ?? null);
+  const [state, setState] = useState<LoadState>("loading");
+
+  useEffect(() => {
+    let alive = true;
+    requestJson<{ summary: ApiTaskSummary }>(`/api/student/tasks/${task.card.id}/review${studentQuery(task.studentId)}`)
+      .then((result) => {
+        if (!alive) return;
+        setReview(result.summary);
+        setState("idle");
+        void reload();
+      })
+      .catch(() => {
+        if (!alive) return;
+        setState("error");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [task.card.id, task.studentId]);
+
+  const summary = review ?? task.summary;
+  if (!summary) {
+    return <EmptyState title="복구노트를 만드는 중입니다" body={state === "error" ? "수행 로그가 아직 부족합니다." : "잠시만 기다려 주세요."} />;
+  }
+
+  return (
+    <section className="mvp-review">
+      <div className="mvp-review-hero">
+        <img src={DEFAULT_ASSETS.mascot} alt="" />
+        <div>
+          <p>과제 돌아보기</p>
+          <h1>{task.card.title}</h1>
+        </div>
+      </div>
+      <section className="mvp-review-metrics">
+        <article>
+          <span>완료</span>
+          <strong>{summary.completionRate}%</strong>
+        </article>
+        <article>
+          <span>도움 요청</span>
+          <strong>{summary.helpRequestCount}회</strong>
+        </article>
+        <article>
+          <span>퀴즈</span>
+          <strong>{summary.correctQuizCount}/{summary.totalQuizCount}</strong>
+        </article>
+      </section>
+      <section className="mvp-review-block">
+        <h2>오늘 잘한 점</h2>
+        {summary.generatedReviewJson.goodPoints.map((item) => (
+          <p key={item}>{item}</p>
+        ))}
+      </section>
+      <section className="mvp-review-block">
+        <h2>다음에 다시 보기</h2>
+        {summary.generatedReviewJson.nextReview.map((item) => (
+          <p key={`${item.title}-${item.description}`}>
+            <strong>{item.title}</strong>
+            {item.description}
+          </p>
+        ))}
+      </section>
+      <section className="mvp-review-block is-ask">
+        <h2>선생님께 물어볼 문장</h2>
+        <p>{summary.generatedReviewJson.askTeacherSentence}</p>
+      </section>
+      {summary.generatedReviewJson.homeMission ? (
+        <section className="mvp-review-block">
+          <h2>생활 미션</h2>
+          <p>{summary.generatedReviewJson.homeMission}</p>
+        </section>
+      ) : null}
+    </section>
+  );
+}
+
+export function StudentDemoApp({
+  initialView = "task",
+  initialCardId,
+}: {
+  initialView?: StudentView;
+  initialCardId?: string;
+}) {
+  const router = useRouter();
+  const [view, setView] = useState<StudentView>(initialView === "preview" ? "task" : initialView);
+  const [task, setTask] = useState<ApiStudentTask | null>(null);
+  const [students, setStudents] = useState<ApiStudent[]>([]);
+  const [activeCardId, setActiveCardId] = useState(initialCardId ?? "");
+  const [state, setState] = useState<LoadState>("loading");
+  const [error, setError] = useState("");
+
+  async function load(preferredCardId = activeCardId) {
+    setState("loading");
+    try {
+      const taskList = await requestJson<{ studentId: string | null; student: ApiStudent | null; students: ApiStudent[]; tasks: CardBundle[] }>("/api/student/tasks");
+      setStudents(taskList.students ?? []);
+      const cardId = preferredCardId && taskList.tasks.some((item) => item.card.id === preferredCardId)
+        ? preferredCardId
+        : taskList.tasks[0]?.card.id ?? "";
+      setActiveCardId(cardId);
+      if (!cardId) {
+        setTask(null);
+        setState("idle");
+        return;
+      }
+      const detail = await requestJson<ApiStudentTask>(`/api/student/tasks/${encodeURIComponent(cardId)}${studentQuery(taskList.studentId)}`);
+      setTask(detail);
+      setError("");
+      setState("idle");
+    } catch (error) {
+      setTask(null);
+      setState("error");
+      setError(error instanceof Error ? error.message : "학생 과제를 불러오지 못했습니다.");
+    }
+  }
+
+  useEffect(() => {
+    setView(initialView === "preview" ? "task" : initialView);
+    if (initialCardId) setActiveCardId(initialCardId);
+  }, [initialView, initialCardId]);
+
+  useEffect(() => {
+    void load(initialCardId);
+  }, []);
+
+  function move(next: StudentView) {
+    setView(next);
+    if (next === "review") router.push(activeCardId ? `/student/tasks/${encodeURIComponent(activeCardId)}/review` : "/student/review");
+    else router.push(activeCardId ? `/student/tasks/${encodeURIComponent(activeCardId)}` : "/student/task");
+  }
+
+  return (
+    <main className="mvp-student-page">
+      <div className="mvp-phone">
+        <StudentTop student={task?.student ?? students[0]} />
+        <ErrorBanner message={error} onRetry={() => void load(activeCardId)} />
+        {state === "loading" ? (
+          <div className="mvp-phone-loading">
+            <Loader2 size={28} className="mvp-spin" />
+            과제를 불러오는 중입니다.
+          </div>
+        ) : !task ? (
+          <EmptyState
+            title="배포된 과제가 없습니다"
+            body="선생님이 실행카드를 학생에게 배포하면 이 화면에 바로 나타납니다."
           />
-        ) : activeView === "preview" ? (
-          <StudentPreviewScreen
-            setActiveView={navigateStudent}
-            cardTitle={task.card.title}
-            subject={task.lesson?.subject ?? task.card.subject}
-            grade={task.lesson?.grade ? gradeBandFromGrade(task.lesson.grade) : task.card.grade}
-            lessonDate={task.lesson?.lessonDate}
-            keywords={task.card.keywordsJson}
-            review={task.card.reviewJson}
-          />
+        ) : view === "review" ? (
+          <StudentReviewScreen task={task} reload={() => load(activeCardId)} />
         ) : (
           <StudentTaskScreen
-            setActiveView={navigateStudent}
-            cardTitle={task.card.title}
-            subject={task.lesson?.subject ?? task.card.subject}
-            grade={task.lesson?.grade ? gradeBandFromGrade(task.lesson.grade) : task.card.grade}
-            supportOptions={task.card.supportOptionsJson}
-            keywords={task.card.keywordsJson}
-            easyExplanation={task.card.easyExplanation}
-            stepCount={task.steps.length}
-            currentStepIndex={currentStepIndex}
-            onSelectStep={setCurrentStepIndex}
-            stepText={currentStep.stepText}
-            visualHint={mapApiStep(currentStep).visualHint}
-            helpSentence={currentStep.helpSentence}
-            askTeacherSentence={task.card.reviewJson.askTeacherSentence || currentStep.helpSentence}
-            quiz={currentQuiz}
-            assignmentInstruction={task.lesson?.assignmentInstruction}
-            completeStep={completeStep}
-            requestHelp={requestHelp}
-            requestSimplify={requestSimplify}
-            requestHelpSentence={requestHelpSentence}
-            answerQuiz={answerQuiz}
-            helpCount={helpCount}
-            homeMission={task.card.reviewJson.homeMission}
+            task={task}
+            reload={() => load(activeCardId)}
+            goReview={() => move("review")}
+            onError={setError}
           />
         )}
-        <div className="dhg-step-toast" aria-live="polite">
-          완료 단계 {completedSteps}/{task.steps.length}
-        </div>
-        <StudentBottomNav activeView={activeView} setActiveView={navigateStudent} />
+        <StudentBottom active={view} onMove={move} />
       </div>
     </main>
   );
