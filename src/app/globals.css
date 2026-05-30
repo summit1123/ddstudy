@@ -65,7 +65,7 @@ button:disabled {
 
 .dhg-teacher-app {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
 }
 
 .dhg-sidebar {
@@ -78,6 +78,7 @@ button:disabled {
   padding: 26px 14px;
   border-right: 1px solid var(--dhg-line);
   background: var(--dhg-surface);
+  overflow-y: auto;
 }
 
 .dhg-brand {
@@ -157,7 +158,7 @@ button:disabled {
 .dhg-chat-card {
   position: relative;
   margin-top: auto;
-  padding: 18px;
+  padding: 16px;
   border: 1px solid #d8eaf7;
   border-radius: 8px;
   background: linear-gradient(180deg, #f4fbff, #ffffff);
@@ -184,6 +185,7 @@ button:disabled {
 }
 
 .dhg-chat-card button,
+.dhg-support-assistant button,
 .dhg-secondary,
 .dhg-primary,
 .dhg-panel-head button,
@@ -203,6 +205,163 @@ button:disabled {
   margin-top: 18px;
   padding: 0 18px;
   color: var(--dhg-blue);
+}
+
+.dhg-support-assistant {
+  display: grid;
+  gap: 12px;
+}
+
+.dhg-dashboard-assistant {
+  margin-top: 0;
+  align-content: start;
+}
+
+.dhg-assistant-head {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.dhg-assistant-head img {
+  width: 48px;
+  margin: 0;
+}
+
+.dhg-assistant-head p {
+  margin-bottom: 4px;
+}
+
+.dhg-support-assistant .dhg-assistant-head span {
+  display: block;
+  color: var(--dhg-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.dhg-assistant-field {
+  display: grid;
+  gap: 6px;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.dhg-assistant-field select,
+.dhg-assistant-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--dhg-line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--dhg-text);
+}
+
+.dhg-assistant-field select {
+  height: 38px;
+  padding: 0 10px;
+}
+
+.dhg-assistant-field textarea {
+  resize: vertical;
+  min-height: 74px;
+  padding: 10px;
+  line-height: 1.45;
+}
+
+.dhg-assistant-student {
+  display: grid;
+  gap: 6px;
+  padding: 11px;
+  border: 1px solid #cfe5ff;
+  border-radius: 8px;
+  background: #f7fbff;
+}
+
+.dhg-assistant-student strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.dhg-assistant-student small,
+.dhg-assistant-student em {
+  color: var(--dhg-muted);
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.dhg-assistant-student div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dhg-support-assistant .dhg-assistant-student span {
+  display: inline-flex;
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #e8f6ff;
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.dhg-assistant-answer {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #c9f0e8;
+  border-radius: 8px;
+  background: #f0fffb;
+}
+
+.dhg-assistant-answer strong {
+  color: #047857;
+  font-size: 13px;
+}
+
+.dhg-assistant-answer p,
+.dhg-assistant-answer ul {
+  margin: 0;
+  color: #344054;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dhg-assistant-answer ul {
+  padding-left: 17px;
+}
+
+.dhg-support-assistant .dhg-assistant-answer small {
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dhg-assistant-error {
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #fff1f0;
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dhg-assistant-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dhg-assistant-actions button,
+.dhg-support-assistant > button {
+  width: 100%;
+  margin-top: 0;
+  padding: 0 10px;
 }
 
 .dhg-primary {
@@ -233,6 +392,8 @@ button:disabled {
 .dhg-secondary:focus-visible,
 .dhg-chat-card button:hover,
 .dhg-chat-card button:focus-visible,
+.dhg-support-assistant button:hover,
+.dhg-support-assistant button:focus-visible,
 .dhg-panel-head button:hover,
 .dhg-panel-head button:focus-visible,
 .dhg-reco-row button:hover,
@@ -929,6 +1090,21 @@ meter {
   margin-bottom: 22px;
 }
 
+.dhg-setup-panel .dhg-panel-head {
+  align-items: flex-start;
+}
+
+.dhg-setup-panel .dhg-panel-head h2 {
+  margin-bottom: 6px;
+}
+
+.dhg-setup-panel .dhg-panel-head p {
+  margin: 0;
+  color: var(--dhg-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .dhg-setup-panel .dhg-panel-head > span {
   padding: 7px 11px;
   border-radius: 999px;
@@ -950,6 +1126,7 @@ meter {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
   gap: 18px;
+  align-items: start;
 }
 
 .dhg-setup-grid > div {
@@ -985,9 +1162,16 @@ meter {
 
 .dhg-inline-form {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) auto auto auto auto;
   gap: 10px;
   align-items: center;
+}
+
+.dhg-school-form {
+  grid-template-columns: minmax(180px, 1fr) 92px 78px auto auto;
+}
+
+.dhg-student-form {
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 0.8fr) auto;
 }
 
 .dhg-inline-form input,
@@ -1043,15 +1227,25 @@ meter {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: flex-start;
 }
 
 .dhg-registered-students span {
+  display: inline-flex;
+  width: fit-content;
+  white-space: nowrap;
   padding: 7px 10px;
   border-radius: 999px;
   background: #eef2ff;
   color: #4338ca;
   font-size: 12px;
   font-weight: 900;
+}
+
+.dhg-registered-students small {
+  color: var(--dhg-muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .dhg-two-column {
@@ -1741,7 +1935,7 @@ meter {
   position: fixed;
   right: 0;
   bottom: 0;
-  left: 240px;
+  left: 280px;
   z-index: 25;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;

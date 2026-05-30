@@ -88,6 +88,8 @@ type StudentProgress = {
   progress: number;
   blockedStep: string;
   status: "waiting" | "blocked" | "learning" | "smooth" | "done";
+  profile: string;
+  supportOptions: string[];
 };
 
 type ApiLesson = {
@@ -194,6 +196,22 @@ type ApiStudent = {
   id: string;
   nickname: string;
   supportProfileJson?: Record<string, unknown>;
+};
+
+type ApiTeacherAssistantResult = {
+  student: {
+    id: string;
+    nickname: string;
+    profile: string;
+    supportOptions: string[];
+  };
+  card: { id: string; title: string; subject: string; grade: string } | null;
+  answer: {
+    answer: string;
+    nextActions: string[];
+    questionToAskStudent: string;
+    evidence: string[];
+  };
 };
 
 type ApiClassroomContext = {
@@ -350,6 +368,18 @@ function withStudentQuery(path: string, studentId?: string) {
   return studentId ? `${path}${path.includes("?") ? "&" : "?"}studentId=${encodeURIComponent(studentId)}` : path;
 }
 
+function studentProfileLabel(student?: Pick<ApiStudent, "supportProfileJson"> | null) {
+  const profile = student?.supportProfileJson?.profile;
+  return typeof profile === "string" && profile.trim() ? profile : "지원 프로필 미설정";
+}
+
+function studentSupportOptions(student?: Pick<ApiStudent, "supportProfileJson"> | null) {
+  const options = student?.supportProfileJson?.supportOptions;
+  return Array.isArray(options)
+    ? normalizeSupportOptions(options.filter((item): item is string => typeof item === "string"))
+    : [];
+}
+
 function copyTextToClipboard(text: string) {
   if (typeof navigator === "undefined" || !navigator.clipboard) return;
   void navigator.clipboard.writeText(text);
@@ -419,6 +449,8 @@ function buildInitialSnapshot(): DemoSnapshot {
       progress: 0,
       blockedStep: "로그 대기",
       status: "learning" as const,
+      profile: studentProfileLabel(student),
+      supportOptions: studentSupportOptions(student),
     })),
     cards,
   };
@@ -515,6 +547,8 @@ async function loadTeacherSnapshot(preferredCardId?: string): Promise<DemoSnapsh
       progress,
       blockedStep: helpRequestCount > 0 ? `도움 요청 ${helpRequestCount}회` : progress > 0 ? `${progress}% 완료` : "로그 대기",
       status: activeCard ? (progress >= 100 ? "done" : helpRequestCount > 0 ? "blocked" : progress > 0 ? "learning" : "smooth") : "waiting",
+      profile: studentProfileLabel(student),
+      supportOptions: studentSupportOptions(student),
     };
   });
 
@@ -665,7 +699,15 @@ function TeacherHeader({ snapshot, onOpenSetup }: { snapshot: DemoSnapshot; onOp
   );
 }
 
-function TeacherSidebar({ activeView, setActiveView }: { activeView: TeacherView; setActiveView: (view: TeacherView) => void }) {
+function TeacherSidebar({
+  activeView,
+  setActiveView,
+  snapshot,
+}: {
+  activeView: TeacherView;
+  setActiveView: (view: TeacherView) => void;
+  snapshot: DemoSnapshot;
+}) {
   const items: Array<{ id: TeacherView; label: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number }> }> = [
     { id: "dashboard", label: "대시보드", icon: LayoutDashboard },
     { id: "prep", label: "수업 준비", icon: GraduationCap },
@@ -694,13 +736,134 @@ function TeacherSidebar({ activeView, setActiveView }: { activeView: TeacherView
           );
         })}
       </nav>
-      <div className="dhg-chat-card">
-        <Image src="/assets/generated/help-robot.png" alt="" width={76} height={76} />
-        <p>도움이 필요하신가요?</p>
-        <span>수업 준비에서 성취기준 검색과 실행카드 생성을 바로 시작할 수 있어요.</span>
-        <button type="button" onClick={() => setActiveView("prep")}>수업 준비 열기</button>
-      </div>
+      <TeacherSupportAssistant snapshot={snapshot} setActiveView={setActiveView} />
     </aside>
+  );
+}
+
+function TeacherSupportAssistant({
+  snapshot,
+  setActiveView,
+  placement = "sidebar",
+}: {
+  snapshot: DemoSnapshot;
+  setActiveView: (view: TeacherView) => void;
+  placement?: "sidebar" | "panel";
+}) {
+  const activeCard = snapshot.cards.find((card) => card.id === snapshot.activeCardId) ?? snapshot.cards[0];
+  const [selectedStudentId, setSelectedStudentId] = useState(snapshot.students[0]?.id ?? "");
+  const selectedStudent = snapshot.students.find((student) => student.id === selectedStudentId) ?? snapshot.students[0];
+  const [question, setQuestion] = useState("이 학생이 지금 막힌 단계에서 바로 할 수 있는 한 가지 행동은 무엇일까요?");
+  const [assistantResult, setAssistantResult] = useState<ApiTeacherAssistantResult | null>(null);
+  const [assistantError, setAssistantError] = useState("");
+  const [isAsking, setIsAsking] = useState(false);
+
+  useEffect(() => {
+    if (!selectedStudentId && snapshot.students[0]?.id) {
+      setSelectedStudentId(snapshot.students[0].id);
+    }
+    if (selectedStudentId && !snapshot.students.some((student) => student.id === selectedStudentId)) {
+      setSelectedStudentId(snapshot.students[0]?.id ?? "");
+    }
+  }, [selectedStudentId, snapshot.students]);
+
+  async function askAssistant() {
+    if (!selectedStudent?.id) {
+      setAssistantError("학생을 먼저 등록해 주세요.");
+      return;
+    }
+    if (!question.trim()) {
+      setAssistantError("선생님이 궁금한 점을 입력해 주세요.");
+      return;
+    }
+    setIsAsking(true);
+    setAssistantError("");
+    try {
+      const result = await requestJson<ApiTeacherAssistantResult>("/api/teacher/assistant", {
+        method: "POST",
+        body: JSON.stringify({
+          studentId: selectedStudent.id,
+          cardId: activeCard?.id,
+          question: question.trim(),
+        }),
+      });
+      setAssistantResult(result);
+    } catch (reason) {
+      setAssistantResult(null);
+      setAssistantError(`학생 지원 답변 생성 실패: ${(reason as Error).message}`);
+    } finally {
+      setIsAsking(false);
+    }
+  }
+
+  return (
+    <div className={`${placement === "sidebar" ? "dhg-chat-card" : "dhg-panel dhg-dashboard-assistant"} dhg-support-assistant`}>
+      <div className="dhg-assistant-head">
+        <Image src="/assets/generated/help-robot.png" alt="" width={58} height={58} />
+        <div>
+          <p>학생 지원 챗봇</p>
+          <span>학생 프로필과 수행 로그를 보고 바로 물어보세요.</span>
+        </div>
+      </div>
+
+      {snapshot.students.length ? (
+        <>
+          <label className="dhg-assistant-field">
+            학생
+            <select value={selectedStudent?.id ?? ""} onChange={(event) => setSelectedStudentId(event.target.value)}>
+              {snapshot.students.map((student) => (
+                <option key={student.id} value={student.id}>{student.name}</option>
+              ))}
+            </select>
+          </label>
+          <div className="dhg-assistant-student">
+            <strong>{selectedStudent?.profile}</strong>
+            <small>{selectedStudent?.task}</small>
+            <em>{selectedStudent?.blockedStep}</em>
+            <div>
+              {supportOptionLabels(selectedStudent?.supportOptions).slice(0, 3).map((label) => (
+                <span key={label}>{label}</span>
+              ))}
+            </div>
+          </div>
+          <label className="dhg-assistant-field">
+            질문
+            <textarea value={question} onChange={(event) => setQuestion(event.target.value)} rows={3} />
+          </label>
+          <button type="button" disabled={isAsking} onClick={askAssistant}>
+            {isAsking ? "답변 생성 중..." : "프로필로 질문하기"}
+          </button>
+          {assistantError ? <strong className="dhg-assistant-error">{assistantError}</strong> : null}
+          {assistantResult ? (
+            <div className="dhg-assistant-answer">
+              <strong>추천 지원</strong>
+              <p>{assistantResult.answer.answer}</p>
+              <ul>
+                {assistantResult.answer.nextActions.map((action) => (
+                  <li key={action}>{action}</li>
+                ))}
+              </ul>
+              <small>학생에게 물어볼 말: {assistantResult.answer.questionToAskStudent}</small>
+            </div>
+          ) : null}
+          <div className="dhg-assistant-actions">
+            <button type="button" onClick={() => setActiveView("reports")}>리포트 보기</button>
+            <button
+              type="button"
+              disabled={!activeCard?.id || !selectedStudent?.id}
+              onClick={() => activeCard?.id && selectedStudent?.id && window.open(withStudentQuery(studentRoute("task", activeCard.id), selectedStudent.id), "_blank", "noopener,noreferrer")}
+            >
+              학생 화면
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <span>학생을 등록하면 지원 프로필과 과제 로그를 바탕으로 질문할 수 있습니다.</span>
+          <button type="button" onClick={() => setActiveView("dashboard")}>학생 등록하기</button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -833,20 +996,23 @@ function TeacherSetupPanel({
   return (
     <section className="dhg-panel dhg-setup-panel">
       <div className="dhg-panel-head">
-        <h2>시연 시작 설정</h2>
+        <div>
+          <h2>교실 운영 설정</h2>
+          <p>학교, 학급, 학생 지원 프로필을 먼저 맞춰두면 실행카드와 리포트가 같은 데이터로 이어집니다.</p>
+        </div>
         <span className={schoolConnected ? "dhg-setup-ok" : "dhg-setup-warn"}>
           {schoolConnected ? "NEIS 학교 연결됨" : "학교 연결 필요"}
         </span>
       </div>
       <div className="dhg-setup-grid">
         <div>
-          <strong>1. 학교/학급 연결</strong>
+          <strong>학교/학급</strong>
           <p>
             현재: {snapshot.school} · {snapshot.className}
-            {snapshot.schoolSource === "NEIS" ? " · NEIS" : " · 시연 설정"}
+            {snapshot.schoolSource === "NEIS" ? " · NEIS" : " · 직접 설정"}
           </p>
-          <div className="dhg-inline-form">
-            <input value={schoolQuery} onChange={(event) => setSchoolQuery(event.target.value)} placeholder="NEIS 학교명 검색" />
+          <div className="dhg-inline-form dhg-school-form">
+            <input value={schoolQuery} onChange={(event) => setSchoolQuery(event.target.value)} placeholder="학교명 검색" />
             <select value={grade} onChange={(event) => setGrade(event.target.value)}>
               <option value="1">1학년</option>
               <option value="2">2학년</option>
@@ -875,9 +1041,9 @@ function TeacherSetupPanel({
           ) : null}
         </div>
         <div>
-          <strong>2. 학생 등록</strong>
-          <p>현재 등록 학생 {snapshot.students.length}명. 학생별 지원 프로필로 과제 화면과 리포트가 나뉩니다.</p>
-          <div className="dhg-inline-form">
+          <strong>학생 명단 및 지원 프로필</strong>
+          <p>현재 등록 학생 {snapshot.students.length}명. 학생별 지원 프로필은 학생 화면, 챗봇, 리포트에 함께 반영됩니다.</p>
+          <div className="dhg-inline-form dhg-student-form">
             <input value={studentName} onChange={(event) => setStudentName(event.target.value)} placeholder="학생 이름 또는 별칭" />
             <select value={studentProfile} onChange={(event) => setStudentProfile(event.target.value)}>
               {Object.keys(profilePresets).map((profile) => (
@@ -887,9 +1053,9 @@ function TeacherSetupPanel({
             <button type="button" disabled={isWorking} onClick={addStudent}>학생 등록</button>
           </div>
           <div className="dhg-registered-students">
-            {snapshot.students.map((student) => (
-              <span key={student.id}>{student.name}</span>
-            ))}
+            {snapshot.students.length ? snapshot.students.map((student) => (
+              <span key={student.id}>{student.name} · {student.profile}</span>
+            )) : <small>아직 등록된 학생이 없습니다.</small>}
           </div>
         </div>
       </div>
@@ -941,10 +1107,10 @@ function TeacherDashboard({
 
       <TeacherSetupPanel snapshot={snapshot} refreshSnapshot={refreshSnapshot} />
 
-      <section className="dhg-flow-panel" aria-label="시연 흐름">
+      <section className="dhg-flow-panel" aria-label="수업 운영 흐름">
         <div>
-          <strong>논스톱 시연 흐름</strong>
-          <p>학교와 학생을 먼저 설정한 뒤, 수업 준비에서 생성한 실행카드를 학생 화면과 리포트까지 이어서 확인합니다.</p>
+          <strong>오늘 수업 운영 흐름</strong>
+          <p>학교와 학생을 설정하고, 수업 준비에서 만든 실행카드를 학생 수행과 리포트까지 이어서 관리합니다.</p>
         </div>
         <ol>
           {flowSteps.map((step, index) => (
@@ -1040,6 +1206,8 @@ function TeacherDashboard({
             )) : <p className="dhg-muted-empty">등록된 학생이 없습니다. 위 설정 영역에서 학생을 먼저 등록해 주세요.</p>}
           </div>
         </div>
+
+        <TeacherSupportAssistant snapshot={snapshot} setActiveView={setActiveView} placement="panel" />
 
         <div className="dhg-panel dhg-ai-panel">
           <div className="dhg-panel-head">
@@ -1989,7 +2157,7 @@ export function TeacherDemoApp({
 
   return (
     <main className="dhg-app dhg-teacher-app">
-      <TeacherSidebar activeView={activeView} setActiveView={navigateTeacher} />
+      <TeacherSidebar activeView={activeView} setActiveView={navigateTeacher} snapshot={snapshot} />
       <div className="dhg-main">
         <LoadingStrip active={requestState === "loading"} />
         <ErrorBanner message={error} onRetry={() => window.location.reload()} />

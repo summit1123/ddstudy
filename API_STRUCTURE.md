@@ -80,6 +80,22 @@ All student actions append `StudentStepLog` records and refresh summary/report d
 - `GET /api/reports/cards/:cardId`
 - `POST /api/reports/generate`
 
+## Teacher Assistant
+
+- `POST /api/teacher/assistant`
+
+Body:
+
+```json
+{
+  "studentId": "student_id",
+  "cardId": "optional_published_card_id",
+  "question": "학생 지원에 대해 선생님이 묻는 질문"
+}
+```
+
+The endpoint reads the registered student profile, support options, active execution card, lesson, task summary, per-step log evidence, and report recommendations, then calls OpenAI JSON schema generation. If OpenAI or required data fails, it returns an explicit API error instead of a fake chatbot answer.
+
 ## Assets / Voice
 
 - `GET /api/assets`

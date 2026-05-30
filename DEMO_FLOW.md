@@ -1,7 +1,7 @@
 # Demo Flow
 
 1. Open `/teacher/dashboard`.
-2. In `시연 시작 설정`, connect the school/class.
+2. In `교실 운영 설정`, connect the school/class.
    - Current app supports NEIS school search from this panel.
    - If a school is not connected yet, the UI explicitly shows `학교 연결 전`; it does not pretend that a fake school came from NEIS.
 3. Register students in `학생 등록`.

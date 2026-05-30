@@ -67,7 +67,7 @@ assert(classroomContext.school?.id, "School context should exist.");
 const studentResult = await request("/api/students", {
   method: "POST",
   body: JSON.stringify({
-    nickname: "시연 대상 학생",
+    nickname: "김하늘",
     classroomId: classroomContext.classroom.id,
     profile: "긴 문장 이해 어려움",
     supportOptions: ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"],
