@@ -33,6 +33,8 @@ body {
   min-height: 100%;
   margin: 0;
   background: var(--dhg-bg);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
 button,
@@ -246,7 +248,7 @@ button:disabled {
 
 .dhg-main {
   min-width: 0;
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 .dhg-topbar {
@@ -1015,7 +1017,7 @@ meter {
 
 .dhg-option-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 12px;
 }
 
@@ -1030,6 +1032,8 @@ meter {
   background: #fbfdff;
   color: #344054;
   font-weight: 850;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .dhg-option-grid button.is-selected {
@@ -2119,6 +2123,7 @@ meter {
 }
 
 .dhg-question-card > span {
+  grid-row: 1 / span 2;
   width: 56px;
   height: 56px;
   display: grid;
@@ -2130,11 +2135,13 @@ meter {
 }
 
 .dhg-question-card strong {
+  grid-column: 2 / 3;
   display: block;
   font-size: 24px;
 }
 
 .dhg-question-card small {
+  grid-column: 2 / 3;
   display: block;
   margin-top: 6px;
   color: #344054;
@@ -2143,6 +2150,9 @@ meter {
 }
 
 .dhg-question-card b {
+  grid-column: 3 / 4;
+  grid-row: 1 / span 2;
+  align-self: center;
   color: #475467;
   font-size: 44px;
 }
@@ -2612,12 +2622,164 @@ meter {
     grid-template-columns: 1fr;
   }
 
+  .dhg-reco-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .dhg-reco-row button {
+    grid-column: 2 / 3;
+    justify-self: start;
+    white-space: nowrap;
+  }
+
+  .dhg-editor-grid {
+    padding-bottom: 110px;
+  }
+
+  .dhg-step-card label {
+    grid-template-columns: 108px minmax(0, 1fr);
+  }
+
   .dhg-library-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 760px) {
+  .dhg-teacher-app {
+    grid-template-columns: 1fr;
+  }
+
+  .dhg-sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    overflow-x: auto;
+  }
+
+  .dhg-sidebar .dhg-brand {
+    flex: 0 0 auto;
+    font-size: 18px;
+  }
+
+  .dhg-sidebar .dhg-brand strong {
+    display: none;
+  }
+
+  .dhg-sidebar nav {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dhg-sidebar nav button,
+  .dhg-sidebar nav button:not(.is-active) {
+    min-width: 46px;
+    min-height: 46px;
+    font-size: 0;
+  }
+
+  .dhg-main {
+    overflow-x: hidden;
+  }
+
+  .dhg-topbar {
+    position: static;
+    height: auto;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .dhg-date {
+    justify-content: center;
+  }
+
+  .dhg-teacher-page {
+    padding: 16px 12px 96px;
+  }
+
+  .dhg-page-title h1 {
+    font-size: 28px;
+  }
+
+  .dhg-title-row,
+  .dhg-panel-head,
+  .dhg-original-prompt p {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dhg-stat-grid,
+  .dhg-report-stats,
+  .dhg-form-grid,
+  .dhg-action-row,
+  .dhg-recent-cards > div:last-child,
+  .dhg-option-grid,
+  .dhg-setup-grid,
+  .dhg-inline-form {
+    grid-template-columns: 1fr;
+  }
+
+  .dhg-inline-form button {
+    width: 100%;
+  }
+
+  .dhg-form-grid .span-2,
+  .dhg-form-grid .span-3 {
+    grid-column: auto;
+  }
+
+  .dhg-progress-table,
+  .dhg-record-table,
+  .dhg-timetable {
+    overflow-x: auto;
+  }
+
+  .dhg-progress-table button,
+  .dhg-record-table div,
+  .dhg-timetable div {
+    min-width: 680px;
+  }
+
+  .dhg-step-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+    padding: 14px;
+  }
+
+  .dhg-step-card label {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .dhg-step-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .dhg-phone-preview-panel {
+    position: static;
+  }
+
+  .dhg-bottom-actions {
+    left: 0;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .dhg-student-select {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .dhg-student-select div {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
   .dhg-student-app {
     padding: 0;
   }
@@ -2668,6 +2830,32 @@ meter {
   .dhg-next-review div,
   .dhg-concept-card div {
     grid-template-columns: 1fr;
+  }
+
+  .dhg-question-card {
+    grid-template-columns: 44px minmax(0, 1fr) 18px;
+    gap: 10px;
+    min-height: 92px;
+    margin-top: 18px;
+    padding: 16px;
+  }
+
+  .dhg-question-card > span {
+    width: 40px;
+    height: 40px;
+  }
+
+  .dhg-question-card strong {
+    font-size: 19px;
+  }
+
+  .dhg-question-card small {
+    font-size: 16px;
+    line-height: 1.45;
+  }
+
+  .dhg-question-card b {
+    font-size: 28px;
   }
 
   .dhg-review-summary article {

@@ -56,8 +56,7 @@ for (const [path, label] of officialSearchCases) {
   assert(first.sourceName && (first.sourceUrl || first.url) && first.license, `${label} should include provenance fields.`);
 }
 
-const unique = Date.now().toString(36);
-const topic = `인물의 마음 ${unique}`;
+const topic = "인물의 마음 찾기";
 const selectedCode = standard.standardCode ?? standard.citations?.[0]?.standardId ?? standard.id;
 const selectedSourceUrl = standard.sourceUrl ?? standard.url;
 const supportOptions = ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"];
@@ -130,7 +129,7 @@ if (selectedSourceUrl) {
 }
 
 const originalSteps = generated.steps;
-const editedStepText = `${originalSteps[1]?.stepText ?? originalSteps[0].stepText} / 저장 확인`;
+const editedStepText = "인물의 마음이 드러나는 문장과 이유를 함께 확인해요.";
 const editedSteps = [
   {
     id: originalSteps[1]?.id ?? originalSteps[0].id,

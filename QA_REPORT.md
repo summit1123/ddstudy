@@ -399,3 +399,67 @@ Latest passing outputs:
   }
 }
 ```
+
+## Presentation Readiness Polish - 2026-05-30
+
+Commands:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm build
+E2E_BASE_URL=http://localhost:3001 pnpm e2e
+E2E_BASE_URL=http://localhost:3001 pnpm e2e:rag
+pnpm pgvector:status
+```
+
+Result: PASS.
+
+Fixes verified:
+
+1. E2E no longer leaves random suffixes such as `mps...` or test-only text like `저장 확인` in user-visible lesson/card titles.
+2. Teacher snapshot now uses the active card's lesson rather than the first inserted lesson, so 수업 준비/대시보드/편집 화면 stay aligned with the latest published card.
+3. Narrow-width screenshots no longer break support option buttons, report recommendation rows, execution-card edit rows, or student help-sentence cards into unreadable vertical text.
+4. Student task screen renders the generated card title and generated help sentence cleanly.
+5. In-app browser screenshots captured for review:
+   - `/tmp/daeum-review-screenshots-ready/01_teacher_dashboard.png`
+   - `/tmp/daeum-review-screenshots-ready/02_lesson_prep.png`
+   - `/tmp/daeum-review-screenshots-ready/03_card_edit.png`
+   - `/tmp/daeum-review-screenshots-ready/04_student_task.png`
+   - `/tmp/daeum-review-screenshots-ready/05_teacher_report.png`
+
+Latest passing outputs:
+
+```json
+{
+  "e2e": {
+    "ok": true,
+    "cardId": "card_mps8ulq0_8wn7x1",
+    "lessonId": "lesson_mps8uced_v560k9",
+    "helpRequestCount": 3,
+    "completionRate": 25
+  },
+  "e2eRag": {
+    "ok": true,
+    "cases": [
+      "직사각형의 둘레",
+      "인물의 마음 찾기",
+      "식물의 한살이",
+      "분수의 덧셈"
+    ],
+    "visualHintTypes": [
+      "number_line",
+      "rectangle_dimension",
+      "sequence_checklist"
+    ]
+  },
+  "pgvector": {
+    "ok": true,
+    "chunks": 5889,
+    "bySourceType": {
+      "official": 5885,
+      "seed": 4
+    }
+  }
+}
+```

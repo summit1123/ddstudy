@@ -51,6 +51,7 @@ type LessonStep = {
 
 type ExecutionCard = {
   id: string;
+  lessonId: string;
   subject: string;
   grade: string;
   title: string;
@@ -363,6 +364,7 @@ function buildInitialSnapshot(): DemoSnapshot {
     const lesson = lessonsById.get(card.lessonId);
     return {
       id: card.id,
+      lessonId: card.lessonId,
       subject: card.subject || lesson?.subject || "",
       grade: gradeBandFromGrade(card.grade || lesson?.grade || ""),
       title: card.title,
@@ -462,6 +464,7 @@ function mapApiCard(card: ApiExecutionCard, lesson: ApiLesson | undefined | null
   const gradeLabel = card.grade ? (card.grade.startsWith("초") ? card.grade : `초${card.grade}`) : lesson?.grade ? `초${lesson.grade}` : "";
   return {
     id: card.id,
+    lessonId: card.lessonId,
     subject: card.subject || lesson?.subject || "",
     grade: gradeLabel,
     title: card.title,
@@ -491,11 +494,11 @@ async function loadTeacherSnapshot(preferredCardId?: string): Promise<DemoSnapsh
       return mapApiCard(detail.card, lessonsById.get(card.lessonId), detail.steps);
     }),
   );
-  const primaryLesson = lessonResult.lessons[0];
   const activeCardId = preferredCardId && cards.some((card) => card.id === preferredCardId)
     ? preferredCardId
     : cards[0]?.id ?? "";
   const activeCard = cards.find((card) => card.id === activeCardId) ?? cards[0];
+  const primaryLesson = activeCard ? lessonsById.get(activeCard.lessonId) : lessonResult.lessons[0];
   const classroom = context.classroom;
   const school = context.school;
   const students: StudentProgress[] = context.students.map((student, index) => {
@@ -1854,7 +1857,7 @@ export function TeacherDemoApp({
     setRequestState("saving");
     try {
       const payload = {
-        lessonId: card.id ? undefined : undefined,
+        lessonId: card.lessonId,
         title: card.title,
         goal: card.goal,
         subject: card.subject,
