@@ -1977,7 +1977,7 @@ function StudentTaskScreen({
   );
 }
 
-function StudentReviewScreen({ task, reload }: { task: ApiStudentTask; reload: () => Promise<void> }) {
+function StudentReviewScreen({ task }: { task: ApiStudentTask }) {
   const [review, setReview] = useState<ApiTaskSummary | null>(task.summary ?? null);
   const [state, setState] = useState<LoadState>("loading");
 
@@ -1988,7 +1988,6 @@ function StudentReviewScreen({ task, reload }: { task: ApiStudentTask; reload: (
         if (!alive) return;
         setReview(result.summary);
         setState("idle");
-        void reload();
       })
       .catch(() => {
         if (!alive) return;
@@ -2127,7 +2126,7 @@ export function StudentApp({
             body="선생님이 실행카드를 학생에게 배포하면 이 화면에 바로 나타납니다."
           />
         ) : view === "review" ? (
-          <StudentReviewScreen task={task} reload={() => load(activeCardId)} />
+          <StudentReviewScreen task={task} />
         ) : (
           <StudentTaskScreen
             task={task}
