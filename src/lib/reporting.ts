@@ -19,11 +19,20 @@ function latestCompletedAt(logs: StudentStepLog[]) {
   return completed ? new Date(completed.createdAt).getTime() : null;
 }
 
+function latestCompletedLog(logs: StudentStepLog[]) {
+  return [...logs].reverse().find((log) => log.eventType === "completed");
+}
+
+function payloadText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 function summarizeStep(step: ExecutionStep, logs: StudentStepLog[]) {
   const stepLogs = logs.filter((log) => log.stepId === step.id);
   const startedAt = latestStartedAt(stepLogs);
   const completedAt = latestCompletedAt(stepLogs);
   const isCompleted = stepLogs.some((log) => log.eventType === "completed");
+  const completedLog = latestCompletedLog(stepLogs);
   const confusedCount = stepLogs.filter((log) => log.eventType === "confused").length;
   const simplifyCount = stepLogs.filter((log) => log.eventType === "simplify").length;
   const helpSentenceViewedCount = stepLogs.filter((log) => log.eventType === "help_sentence_viewed").length;
@@ -40,6 +49,7 @@ function summarizeStep(step: ExecutionStep, logs: StudentStepLog[]) {
     helpSentenceViewedCount,
     quizAnswered: Boolean(quizLog),
     isCorrect,
+    studentResponse: payloadText(completedLog?.payloadJson.studentResponse),
     timeSeconds
   };
 }

@@ -37,6 +37,14 @@ const cases = [
     assignmentInstruction: "분모가 같은 분수 덧셈 문제를 풀고 계산 과정을 써보세요.",
     query: "분수 덧셈",
   },
+  {
+    subject: "수학",
+    grade: "초2",
+    topic: "비례 반비례",
+    lessonContent: "생활 속 수량이 같이 늘거나 반대로 줄어드는 관계를 예시로 살펴봅니다.",
+    assignmentInstruction: "예시를 보고 비례와 반비례를 구분하고, 답을 한 줄로 써보세요.",
+    query: "비례 반비례",
+  },
 ];
 
 async function main() {
@@ -64,13 +72,6 @@ async function main() {
         title: item.topic,
         lessonContent: item.lessonContent,
         assignmentInstruction: item.assignmentInstruction,
-        selectedStandardId: official.citations?.[0]?.standardId ?? official.id,
-        selectedStandardCode: official.standardCode,
-        selectedStandardText: official.summary,
-        selectedStandardSourceType: official.sourceType,
-        selectedStandardSourceName: official.sourceName,
-        selectedStandardSourceUrl: official.sourceUrl ?? official.url,
-        selectedStandardLicense: official.license,
         supportOptions: ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"],
         save: false,
       }),
@@ -80,12 +81,20 @@ async function main() {
     assert(generated.card?.steps?.length >= 3, `${item.topic} should generate at least 3 steps.`);
     assert(generated.card.steps.length <= 5, `${item.topic} should generate at most 5 steps.`);
     assert(generated.card.subject === item.subject, `${item.topic} should preserve subject.`);
-    assert(generated.card.standard.sourceType === official.sourceType, `${item.topic} should preserve sourceType provenance.`);
-    assert(generated.card.standard.sourceName === official.sourceName, `${item.topic} should preserve sourceName provenance.`);
-    assert(generated.card.standard.license === official.license, `${item.topic} should preserve license provenance.`);
+    assert(generated.card.standard.sourceType === "official", `${item.topic} should auto-select official metadata.`);
+    assert(generated.card.standard.sourceName, `${item.topic} should preserve sourceName provenance.`);
+    assert(generated.card.standard.license, `${item.topic} should preserve license provenance.`);
+    assert(generated.card.standard.sourceUrl, `${item.topic} should preserve source URL provenance.`);
     assert(generated.card.review?.homeMission, `${item.topic} should include a life-example home mission.`);
     assert(generated.ragTrace?.promptFields?.retrievedStandards === true, `${item.topic} should trace retrieved standards.`);
+    assert(generated.ragTrace?.promptFields?.selectedStandard === true, `${item.topic} should trace auto-selected standard.`);
     assert(generated.ragTrace?.retrievedContext?.some((context) => context.sourceType === "official"), `${item.topic} should trace official metadata context.`);
+    if (item.topic.includes("비례")) {
+      assert(
+        /비례/.test(`${generated.card.standard.text} ${generated.card.standard.code ?? ""}`),
+        "비례 반비례 should not bind to an unrelated geometry standard.",
+      );
+    }
 
     for (const step of generated.card.steps) {
       visualHintTypes.add(step.visualHint.type);

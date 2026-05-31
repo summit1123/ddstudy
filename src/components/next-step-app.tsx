@@ -178,22 +178,6 @@ type ApiStudentTask = CardBundle & {
   summary?: ApiTaskSummary | null;
 };
 
-type ApiStandardSearchResult = {
-  id: string;
-  title: string;
-  subject: string;
-  gradeBand: string;
-  summary: string;
-  url?: string;
-  standardCode?: string;
-  sourceType?: "seed" | "official" | "crawled" | "uploaded" | "manual" | string;
-  sourceName?: string;
-  sourceUrl?: string;
-  license?: string;
-  citations: Array<{ standardId: string; title: string; source: string; locator?: string; quote?: string }>;
-  score?: number;
-};
-
 type ApiNeisSchool = {
   ATPT_OFCDC_SC_CODE: string;
   ATPT_OFCDC_SC_NM: string;
@@ -220,6 +204,7 @@ type ApiReport = {
     helpSentenceViewedCount?: number;
     quizAnswered: boolean;
     isCorrect: boolean;
+    studentResponse?: string | null;
     timeSeconds: number;
   }>;
 };
@@ -304,10 +289,6 @@ function sourceTypeClass(sourceType?: string | null) {
   if (sourceType === "official" || sourceType === "official_metadata") return "is-official";
   if (sourceType === "seed" || !sourceType) return "is-seed";
   return "is-public";
-}
-
-function standardCode(standard: ApiStandardSearchResult) {
-  return standard.standardCode ?? standard.citations?.[0]?.standardId ?? standard.id;
 }
 
 function cleanSourceName(sourceName?: string | null) {
@@ -757,7 +738,7 @@ function DashboardView({
           </div>
           {latest ? (
             <div className="mvp-card-preview">
-              <p>{latest.card.goal}</p>
+              <p>{latest.lesson?.assignmentInstruction ?? latest.card.easyExplanation}</p>
               <div className="mvp-badges">
                 <span>{latest.card.subject}</span>
                 <span>{gradeBand(latest.card.grade)}</span>
@@ -859,6 +840,34 @@ function SupportOptionToggles({
   );
 }
 
+function GenerationOverlay({
+  subject,
+  topic,
+  studentName,
+}: {
+  subject: string;
+  topic: string;
+  studentName?: string;
+}) {
+  return (
+    <div className="mvp-generation-overlay" role="status" aria-live="polite">
+      <div className="mvp-generation-card">
+        <img src={DEFAULT_ASSETS.mascot} alt="" />
+        <div>
+          <p>실행카드를 만들고 있어요</p>
+          <h2>{topic || "오늘 수업"} · {subject || "과목"}</h2>
+          <span>{studentName ? `${studentName} 학생에게 맞게 조정 중` : "학생 지원 옵션 반영 중"}</span>
+        </div>
+        <ol>
+          <li>교육과정 기준을 자동으로 찾는 중</li>
+          <li>개념 → 기초 → 응용 단계로 나누는 중</li>
+          <li>확인 질문과 도움 문장을 만드는 중</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
 function LessonPrepView({
   context,
   onGenerated,
@@ -876,9 +885,6 @@ function LessonPrepView({
   const [topic, setTopic] = useState("");
   const [lessonContent, setLessonContent] = useState("");
   const [assignmentInstruction, setAssignmentInstruction] = useState("");
-  const [standardQuery, setStandardQuery] = useState("");
-  const [standards, setStandards] = useState<ApiStandardSearchResult[]>([]);
-  const [selectedStandard, setSelectedStandard] = useState<ApiStandardSearchResult | null>(null);
   const [supportOptions, setSupportOptions] = useState<string[]>(supportOptionsFromStudent(firstStudent));
   const [busy, setBusy] = useState("");
 
@@ -897,31 +903,6 @@ function LessonPrepView({
     topic.trim().length > 0 &&
     lessonContent.trim().length > 0 &&
     assignmentInstruction.trim().length > 0;
-
-  async function searchStandards() {
-    const query = (standardQuery || `${topic} ${assignmentInstruction}`).trim();
-    if (!query) {
-      onError("검색할 수업 주제나 과제 지시문을 먼저 입력해 주세요.");
-      return;
-    }
-    setBusy("standard");
-    try {
-      const params = new URLSearchParams({
-        q: query,
-        limit: "5",
-      });
-      if (subject) params.set("subject", subject);
-      if (context?.classroom?.grade) params.set("gradeBand", gradeBand(context.classroom.grade));
-      const result = await requestJson<{ results: ApiStandardSearchResult[] }>(`/api/standards/search?${params.toString()}`);
-      setStandards(result.results ?? []);
-      setSelectedStandard(result.results?.[0] ?? null);
-      onError("");
-    } catch (error) {
-      onError(error instanceof Error ? error.message : "성취기준 검색에 실패했습니다.");
-    } finally {
-      setBusy("");
-    }
-  }
 
   async function generateCard() {
     if (!canGenerate) {
@@ -944,14 +925,8 @@ function LessonPrepView({
           lessonDate,
           lessonContent: lessonContent.trim(),
           assignmentInstruction: assignmentInstruction.trim(),
-          selectedStandardId: selectedStandard ? standardCode(selectedStandard) : undefined,
-          selectedStandardText: selectedStandard?.summary,
-          selectedStandardSourceType: selectedStandard?.sourceType,
-          selectedStandardSourceName: selectedStandard?.sourceName,
-          selectedStandardSourceUrl: selectedStandard?.sourceUrl ?? selectedStandard?.url,
-          selectedStandardLicense: selectedStandard?.license,
           supportOptions,
-          objectives: selectedStandard ? [selectedStandard.summary] : [lessonContent.trim()],
+          objectives: [lessonContent.trim(), assignmentInstruction.trim()],
         }),
       });
 
@@ -966,13 +941,6 @@ function LessonPrepView({
           title: topic.trim(),
           lessonContent: lesson.lesson.lessonContent,
           assignmentInstruction: lesson.lesson.assignmentInstruction,
-          selectedStandardId: selectedStandard ? standardCode(selectedStandard) : undefined,
-          selectedStandardCode: selectedStandard?.standardCode,
-          selectedStandardText: selectedStandard?.summary,
-          selectedStandardSourceType: selectedStandard?.sourceType,
-          selectedStandardSourceName: selectedStandard?.sourceName,
-          selectedStandardSourceUrl: selectedStandard?.sourceUrl ?? selectedStandard?.url,
-          selectedStandardLicense: selectedStandard?.license,
           supportOptions,
           save: true,
         }),
@@ -1001,13 +969,16 @@ function LessonPrepView({
         <div>
           <p className="mvp-eyebrow">수업 준비</p>
           <h1>학생 한 명을 기준으로 실행카드를 만듭니다</h1>
-          <p>추천 성취기준은 수업 주제와 과제 지시문을 검색한 뒤에만 표시됩니다.</p>
+          <p>수업 내용과 과제 지시문을 입력하면 교육과정 기준은 AI가 자동으로 찾아 연결합니다.</p>
         </div>
         <button className="mvp-primary" onClick={() => void generateCard()} disabled={!canGenerate || busy === "generate"} type="button">
           {busy === "generate" ? <Loader2 size={17} className="mvp-spin" /> : <Send size={17} />}
           실행카드 생성
         </button>
       </div>
+      {busy === "generate" ? (
+        <GenerationOverlay subject={subject.trim()} topic={topic.trim()} studentName={selectedStudent?.nickname} />
+      ) : null}
       <div className="mvp-form-grid">
         <label>
           학생
@@ -1043,37 +1014,13 @@ function LessonPrepView({
       <div className="mvp-split">
         <section>
           <div className="mvp-mini-head">
-            <h3>성취기준 검색</h3>
-            <p>수업 주제와 과제 지시문에 맞는 교육과정 기준을 찾아 선택하세요.</p>
+            <h3>교육과정 기준 자동 연결</h3>
+            <p>별도 검색 없이 주제, 수업 내용, 과제 지시문을 벡터 검색해 가장 가까운 기준을 연결합니다.</p>
           </div>
-          <div className="mvp-inline-form">
-            <input value={standardQuery} onChange={(event) => setStandardQuery(event.target.value)} placeholder="비워두면 주제/과제 지시문으로 검색" />
-            <button className="mvp-secondary" onClick={() => void searchStandards()} type="button">
-              {busy === "standard" ? <Loader2 size={16} className="mvp-spin" /> : <Search size={16} />}
-              검색
-            </button>
-          </div>
-          <div className="mvp-standard-list">
-            {standards.length === 0 ? (
-              <p>아직 검색하지 않았습니다.</p>
-            ) : (
-              standards.map((standard) => (
-                <button
-                  key={standard.id}
-                  className={selectedStandard?.id === standard.id ? "is-selected" : ""}
-                  onClick={() => setSelectedStandard(standard)}
-                  type="button"
-                >
-                  <strong>{standardCode(standard)}</strong>
-                  <span>{standard.summary}</span>
-                  <small>
-                    <b className={sourceTypeClass(standard.sourceType)}>{sourceTypeLabel(standard.sourceType)}</b>
-                    {cleanSourceName(standard.sourceName)}
-                    {cleanLicenseLabel(standard.license) ? ` · ${cleanLicenseLabel(standard.license)}` : ""}
-                  </small>
-                </button>
-              ))
-            )}
+          <div className="mvp-auto-rag-note">
+            <span>자동 RAG</span>
+            <strong>{subject.trim() || "과목"} · {topic.trim() || "수업 주제"}</strong>
+            <p>생성 후 실행카드 편집 화면에서 연결된 교육과정 기준을 확인할 수 있습니다.</p>
           </div>
         </section>
         <section>
@@ -1320,11 +1267,11 @@ function CardEditorView({
               제목
               <input value={draft.title} onChange={(event) => patchDraft({ title: event.target.value })} />
             </label>
-            <label>
-              목표
-              <input value={draft.goal} onChange={(event) => patchDraft({ goal: event.target.value })} />
-            </label>
           </div>
+          <label className="mvp-wide-label">
+            학생이 볼 자료/문제
+            <textarea value={draft.goal} onChange={(event) => patchDraft({ goal: event.target.value })} rows={5} />
+          </label>
           <label className="mvp-wide-label">
             쉬운 설명
             <textarea value={draft.easyExplanation} onChange={(event) => patchDraft({ easyExplanation: event.target.value })} rows={3} />
@@ -1432,6 +1379,9 @@ function StudentMiniPreview({
         </div>
         <h3>{card.title}</h3>
         <p>{card.easyExplanation}</p>
+      </div>
+      <div className="mvp-mini-material">
+        {card.goal.split("\n").filter(Boolean).slice(0, 3).join("\n")}
       </div>
       <div className="mvp-mini-step">
         <span>{stepIndex + 1}단계</span>
@@ -1546,6 +1496,7 @@ function ReportsView({
                       <small>
                         {item.isCompleted ? "완료됨" : "진행 전"} · 도움 {item.confusedCount + item.simplifyCount + (item.helpSentenceViewedCount ?? 0)}회 · 퀴즈 {item.quizAnswered ? (item.isCorrect ? "정답" : "오답") : "미응답"}
                       </small>
+                      {item.studentResponse ? <em>학생 답: {item.studentResponse}</em> : null}
                     </div>
                   </article>
                 ))}
@@ -1773,6 +1724,34 @@ function VisualHintView({ hint, compact = false }: { hint?: VisualHint | null; c
   return <div className="mvp-text-hint">{text || hint.alt || "이 단계에서 볼 단서를 확인해요."}</div>;
 }
 
+function materialLabelFor(card: ApiExecutionCard) {
+  const key = `${card.subject} ${card.topic} ${card.title}`;
+  if (key.includes("국어") || key.includes("인물") || key.includes("문장")) return "읽을 글";
+  if (key.includes("수학") || key.includes("계산") || key.includes("둘레") || key.includes("분수")) return "풀 문제";
+  if (key.includes("과학") || key.includes("식물") || key.includes("관찰")) return "살펴볼 자료";
+  if (key.includes("생활") || key.includes("준비물") || key.includes("규칙")) return "상황";
+  return "학습 자료";
+}
+
+function responseForStep(logs: ApiStudentLog[], stepId: string) {
+  const log = [...logs].reverse().find((item) => item.stepId === stepId && item.eventType === "completed");
+  const value = log?.payloadJson.studentResponse;
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+function stepNeedsWrittenResponse(step: ApiExecutionStep) {
+  const text = [step.stepText, step.microQuizJson.question].join(" ");
+  return /써|쓰기|적|기록|문장|이유|답|생각|설명|계산|구해|구분|찾/.test(text);
+}
+
+function responsePlaceholder(step: ApiExecutionStep, task: ApiStudentTask) {
+  const text = `${task.card.subject} ${task.card.topic} ${step.stepText}`;
+  if (/국어|글|문장|인물|마음/.test(text)) return "내가 찾은 문장과 이유를 짧게 적어요.";
+  if (/수학|계산|문제|분수|비례|도형|둘레/.test(text)) return "식이나 답을 한 줄로 적어요.";
+  if (/과학|관찰|실험|자료/.test(text)) return "본 것과 알게 된 점을 적어요.";
+  return "내가 한 생각이나 답을 짧게 적어요.";
+}
+
 function StudentTaskScreen({
   task,
   reload,
@@ -1791,6 +1770,7 @@ function StudentTaskScreen({
   const [selectedAnswer, setSelectedAnswer] = useState("");
   const [feedback, setFeedback] = useState("");
   const [voiceState, setVoiceState] = useState("");
+  const [currentResponse, setCurrentResponse] = useState("");
   const [busy, setBusy] = useState("");
 
   useEffect(() => {
@@ -1800,13 +1780,27 @@ function StudentTaskScreen({
     void requestJson(`/api/student/tasks/${task.card.id}/steps/${step.id}/start${studentQuery(task.studentId)}`, { method: "POST" }).catch(() => undefined);
   }, [task.card.id, task.studentId, task.logs, step?.id, allDone]);
 
+  useEffect(() => {
+    if (!step?.id) return;
+    setCurrentResponse(responseForStep(task.logs, step.id));
+    setSelectedAnswer("");
+    setFeedback("");
+  }, [step?.id]);
+
   async function action(kind: "confused" | "simplify" | "help-sentence" | "complete") {
     if (!step) return;
+    const needsResponse = stepNeedsWrittenResponse(step);
+    if (kind === "complete" && needsResponse && !currentResponse.trim()) {
+      setFeedback("한 문장만 적고 완료해요.");
+      return;
+    }
     setBusy(kind);
     try {
       const result = await requestJson<{ easyText?: string; helpSentence?: string }>(
         `/api/student/tasks/${task.card.id}/steps/${step.id}/${kind}${studentQuery(task.studentId)}`,
-        { method: "POST" },
+        kind === "complete"
+          ? { method: "POST", body: JSON.stringify({ studentResponse: currentResponse.trim() }) }
+          : { method: "POST" },
       );
       if (kind === "simplify") setFeedback(result.easyText ?? "한 번에 한 행동만 확인해요.");
       if (kind === "help-sentence") setFeedback(result.helpSentence ?? step.helpSentence);
@@ -1893,6 +1887,7 @@ function StudentTaskScreen({
 
   const progress = task.steps.length ? Math.round((completed.size / task.steps.length) * 100) : 0;
   const supportOptions = normalizeSupportOptions(task.card.supportOptionsJson);
+  const needsResponse = stepNeedsWrittenResponse(step);
 
   if (allDone) {
     const completedStepCount = completed.size;
@@ -1906,6 +1901,9 @@ function StudentTaskScreen({
     const review = task.summary?.generatedReviewJson ?? task.card.reviewJson;
     const reviewPoints = review.goodPoints.length ? review.goodPoints : ["오늘 과제를 끝까지 해냈어요."];
     const nextReview = review.nextReview[0];
+    const writtenResponses = task.steps
+      .map((item) => ({ step: item, response: responseForStep(task.logs, item.id) }))
+      .filter((item) => item.response);
 
     return (
       <section className="mvp-student-complete">
@@ -1940,6 +1938,17 @@ function StudentTaskScreen({
             </span>
           ))}
         </div>
+        {writtenResponses.length ? (
+          <div className="mvp-complete-responses">
+            <p>내가 쓴 답</p>
+            {writtenResponses.map(({ step: item, response }) => (
+              <span key={item.id}>
+                <b>{item.order}단계</b>
+                {response}
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className="mvp-complete-review">
           <p>돌아보기</p>
           {reviewPoints.slice(0, 2).map((item) => (
@@ -1976,15 +1985,41 @@ function StudentTaskScreen({
 
       <section className="mvp-mission-card">
         <p>오늘 과제</p>
-        <strong>{task.lesson?.assignmentInstruction ?? task.card.goal}</strong>
+        <strong>{task.lesson?.assignmentInstruction ?? task.card.title}</strong>
         <small>
           <b>쉬운 설명</b>
           {task.card.easyExplanation}
         </small>
       </section>
 
+      {task.card.goal ? (
+        <section className="mvp-material-card">
+          <p>{materialLabelFor(task.card)}</p>
+          <div>{task.card.goal}</div>
+        </section>
+      ) : null}
+
+      <article className="mvp-current-step">
+        <span>지금 할 일 · {currentIndex + 1}단계</span>
+        <h2>{step.stepText}</h2>
+        <VisualHintView hint={step.visualHintJson} />
+        {needsResponse ? (
+          <label className="mvp-step-response" htmlFor={`student-response-${step.id}`}>
+            <span>내 답 적기</span>
+            <textarea
+              id={`student-response-${step.id}`}
+              value={currentResponse}
+              onChange={(event) => setCurrentResponse(event.target.value)}
+              placeholder={responsePlaceholder(step, task)}
+              rows={3}
+            />
+          </label>
+        ) : null}
+        {feedback ? <p className="mvp-feedback">{feedback}</p> : null}
+      </article>
+
       {hasSupportOption(supportOptions, "easy_language") && task.card.keywordsJson.length > 0 ? (
-        <div className="mvp-keywords">
+        <div className="mvp-keywords" aria-label="쉬운 말 뜻">
           {task.card.keywordsJson.slice(0, 3).map((keyword) => (
             <span key={keyword.word}>
               <strong>{keyword.word}</strong>
@@ -1993,13 +2028,6 @@ function StudentTaskScreen({
           ))}
         </div>
       ) : null}
-
-      <article className="mvp-current-step">
-        <span>지금 할 일 · {currentIndex + 1}단계</span>
-        <h2>{step.stepText}</h2>
-        <VisualHintView hint={step.visualHintJson} />
-        {feedback ? <p className="mvp-feedback">{feedback}</p> : null}
-      </article>
 
       {hasSupportOption(supportOptions, "repeat_check") ? (
         <section className="mvp-quiz">

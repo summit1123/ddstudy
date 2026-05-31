@@ -40,11 +40,12 @@ export async function POST(request: Request) {
 
     const input = parsed.data;
     const resources = await searchResources({
-      q: input.resourceQuery ?? `${input.subject} ${input.gradeBand} ${input.topic}`,
+      q: input.resourceQuery ?? `${input.subject} ${input.gradeBand} ${input.topic} ${input.lessonContent ?? ""} ${input.assignmentInstruction ?? ""}`,
       subject: input.subject,
       gradeBand: input.gradeBand,
       limit: 5,
     });
+    const autoStandard = resources[0];
 
     const generated = await generateJson({
       name: "lesson_plan",
@@ -61,7 +62,11 @@ export async function POST(request: Request) {
         input.objectives?.length ? `Requested objectives: ${input.objectives.join("; ")}` : "",
         input.lessonContent ? `Teacher lesson content: ${input.lessonContent}` : "",
         input.assignmentInstruction ? `Teacher assignment instruction: ${input.assignmentInstruction}` : "",
-        input.selectedStandardText ? `Selected standard: ${input.selectedStandardId ?? ""} ${input.selectedStandardText}` : "",
+        input.selectedStandardText
+          ? `Selected standard: ${input.selectedStandardId ?? ""} ${input.selectedStandardText}`
+          : autoStandard
+            ? `Auto-selected standard: ${autoStandard.standardCode ?? autoStandard.citations[0]?.standardId ?? autoStandard.id} ${autoStandard.summary}`
+            : "",
         input.supportOptions.length ? `Support options: ${input.supportOptions.join(", ")}` : "",
         input.learnerContext ? `Learner context: ${input.learnerContext}` : "",
         "Standards/resources:",
@@ -89,7 +94,12 @@ export async function POST(request: Request) {
               .join("\n"),
           ].join("\n"),
         assignmentInstruction: input.assignmentInstruction ?? generated.assessment,
-        selectedStandardId: input.selectedStandardId ?? (generated.citations ?? [])[0]?.standardId ?? null,
+        selectedStandardId:
+          input.selectedStandardId ??
+          autoStandard?.standardCode ??
+          autoStandard?.citations[0]?.standardId ??
+          (generated.citations ?? [])[0]?.standardId ??
+          null,
         supportOptionsJson: input.supportOptions,
         createdAt: new Date().toISOString(),
       };

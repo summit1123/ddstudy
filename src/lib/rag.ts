@@ -182,6 +182,14 @@ function gradeMatches(chunkGradeBand: string, requestedGradeBand?: string) {
   return requestedNumber >= start && requestedNumber <= end;
 }
 
+function schoolLevelMatches(schoolLevel?: string, requestedGradeBand?: string) {
+  if (!requestedGradeBand) return true;
+  if (requestedGradeBand.includes("초")) return Boolean(schoolLevel?.includes("초"));
+  if (requestedGradeBand.includes("중")) return Boolean(schoolLevel?.includes("중"));
+  if (requestedGradeBand.includes("고")) return Boolean(schoolLevel?.includes("고"));
+  return true;
+}
+
 export function standardsStorePath() {
   return process.env.STANDARDS_VECTOR_STORE_PATH ?? dataPath("standards-vector-store.json");
 }
@@ -277,11 +285,16 @@ export async function searchStandards({
   const [queryEmbedding] = await embedTexts([q]);
   const tagSet = new Set(tags ?? []);
 
-  const matches = store.chunks
+  const candidateChunks = store.chunks
     .filter((chunk) => !subject || chunk.subject === subject)
-    .filter((chunk) => gradeMatches(chunk.gradeBand, gradeBand))
     .filter((chunk) => tagSet.size === 0 || chunk.tags.some((tag) => tagSet.has(tag)))
-    .filter((chunk) => !sourceType || chunk.sourceType === sourceType)
+    .filter((chunk) => !sourceType || chunk.sourceType === sourceType);
+  const gradeMatchedChunks = candidateChunks
+    .filter((chunk) => schoolLevelMatches(chunk.schoolLevel, gradeBand))
+    .filter((chunk) => gradeMatches(chunk.gradeBand, gradeBand));
+  const chunksForSearch = gradeMatchedChunks.length ? gradeMatchedChunks : candidateChunks;
+
+  const matches = chunksForSearch
     .map((chunk) => ({ chunk, score: cosine(queryEmbedding, chunk.embedding) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);

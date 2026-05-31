@@ -121,8 +121,6 @@ for (const [path, label] of officialSearchCases) {
 }
 
 const topic = "인물의 마음 찾기";
-const selectedCode = standard.standardCode ?? standard.citations?.[0]?.standardId ?? standard.id;
-const selectedSourceUrl = standard.sourceUrl ?? standard.url;
 const supportOptions = ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"];
 const classroomContext = await request("/api/classroom/context");
 assert(classroomContext.teacher?.id, "Teacher context should exist.");
@@ -153,14 +151,11 @@ const lessonResult = await request("/api/lessons", {
     lessonDate: "2026-05-29",
     lessonContent: "글을 읽고 인물의 말과 행동에서 마음이 드러나는 문장을 찾아봅니다.",
     assignmentInstruction: "글에서 인물의 마음이 드러난 문장을 하나 찾고, 왜 그렇게 생각했는지 짧게 써보세요.",
-    selectedStandardId: standard.citations?.[0]?.standardId ?? standard.id,
-    selectedStandardText: standard.summary,
-    selectedStandardSourceType: standard.sourceType,
-    selectedStandardSourceName: standard.sourceName,
-    selectedStandardSourceUrl: selectedSourceUrl,
-    selectedStandardLicense: standard.license,
     supportOptions,
-    objectives: [standard.summary],
+    objectives: [
+      "인물의 말과 행동에서 마음이 드러나는 문장을 찾습니다.",
+      "찾은 문장을 근거로 이유를 짧게 씁니다.",
+    ],
   }),
 });
 assert(lessonResult.lesson?.id, "Lesson should be persisted.");
@@ -177,13 +172,6 @@ const generated = await request("/api/execution-cards/generate", {
     title: topic,
     lessonContent: lessonResult.lesson.lessonContent,
     assignmentInstruction: lessonResult.lesson.assignmentInstruction,
-    selectedStandardId: standard.citations?.[0]?.standardId ?? standard.id,
-    selectedStandardCode: selectedCode,
-    selectedStandardText: standard.summary,
-    selectedStandardSourceType: standard.sourceType,
-    selectedStandardSourceName: standard.sourceName,
-    selectedStandardSourceUrl: selectedSourceUrl,
-    selectedStandardLicense: standard.license,
     supportOptions,
     save: true,
   }),
@@ -192,11 +180,13 @@ assert(generated.generationMode === "openai", "Execution card generation should 
 assert(generated.card?.id, "Generated execution card should be saved.");
 assert(generated.steps?.length >= 3, "Generated card should include 3 to 5 executable steps.");
 assert(generated.steps.length <= 5, "Generated card should not exceed the final schema step limit.");
+assert(/읽을 글|문제|자료|상황|학습 자료/.test(generated.card.goal), "Generated card should include self-contained student material before steps.");
+assert(generated.card.goal.includes("해야 할 일"), "Generated student material should state the exact assignment action.");
 assert(generated.card.subject === "국어", "Generated card should preserve teacher subject.");
-assert(generated.card.standardJson.code === selectedCode, "Generated card should preserve selected standard code.");
-assert(generated.card.standardJson.sourceType === standard.sourceType, "Generated card should preserve selected sourceType.");
-assert(generated.card.standardJson.sourceName === standard.sourceName, "Generated card should preserve selected sourceName.");
-assert(generated.card.standardJson.license === standard.license, "Generated card should preserve selected license.");
+assert(generated.card.standardJson.code, "Generated card should auto-select a standard code from RAG.");
+assert(generated.card.standardJson.sourceType === "official", "Generated card should auto-select official metadata when available.");
+assert(generated.card.standardJson.sourceName, "Generated card should preserve auto-selected sourceName.");
+assert(generated.card.standardJson.license, "Generated card should preserve auto-selected license.");
 assert(generated.card.supportOptionsJson.includes("life_example"), "Generated card should persist canonical support options.");
 assert(generated.card.reviewJson.homeMission, "life_example support should create a homeMission.");
 assert(generated.ragTrace?.promptFields?.retrievedStandards === true, "Generation response should trace retrieved standards in the prompt context.");
@@ -204,10 +194,9 @@ assert(generated.ragTrace?.promptFields?.selectedStandard === true, "Generation 
 assert(generated.ragTrace?.promptFields?.lessonContent === true, "Generation response should trace lessonContent in the prompt context.");
 assert(generated.ragTrace?.promptFields?.assignmentInstruction === true, "Generation response should trace assignmentInstruction in the prompt context.");
 assert(generated.ragTrace?.retrievedContext?.some((item) => item.sourceType === "official"), "RAG trace should include official metadata context.");
-assert(generated.ragTrace?.selectedStandard?.sourceType === standard.sourceType, "RAG trace should include selected standard provenance.");
-if (selectedSourceUrl) {
-  assert(generated.card.standardJson.sourceUrl === selectedSourceUrl, "Generated card should preserve selected source URL.");
-}
+assert(generated.ragTrace?.selectedStandard?.sourceType === "official", "RAG trace should include auto-selected standard provenance.");
+assert(generated.ragTrace?.selectedStandard?.sourceName, "RAG trace should expose the auto-selected standard source.");
+assert(generated.card.standardJson.sourceUrl, "Generated card should preserve auto-selected source URL.");
 
 const originalSteps = generated.steps;
 const editedStepText = "인물의 마음이 드러나는 문장과 이유를 함께 확인해요.";
@@ -278,7 +267,12 @@ for (const [index, step] of task.steps.entries()) {
     method: "POST",
     body: JSON.stringify({ answer: step.microQuizJson.answer }),
   });
-  const completeResult = await request(`/api/student/tasks/${generated.card.id}/steps/${step.id}/complete${studentQuery}`, { method: "POST" });
+  const completeResult = await request(`/api/student/tasks/${generated.card.id}/steps/${step.id}/complete${studentQuery}`, {
+    method: "POST",
+    body: JSON.stringify({
+      studentResponse: `학생 답 ${index + 1}: ${step.microQuizJson.answer}`,
+    }),
+  });
   finalSummary = completeResult.summary;
 }
 assert(finalSummary?.completionRate === 100, "Student should complete the full published task in E2E.");
@@ -292,6 +286,7 @@ const report = await request(`/api/reports/students/${studentResult.student.id}?
 assert(report.summary.helpRequestCount >= 3, "Teacher report should reflect student help logs.");
 assert(report.summary.completionRate === 100, "Teacher report should reflect the fully completed student task.");
 assert(report.perStep?.length === reloaded.steps.length, "Report should include per-step flow for the edited card.");
+assert(report.perStep[0].studentResponse?.includes("학생 답 1"), "Report should expose the student's written step response.");
 
 const retryResult = await request(`/api/student/tasks/${generated.card.id}/retry${studentQuery}`, { method: "POST" });
 assert(retryResult.removedLogs > 0, "Retry should remove existing student logs.");

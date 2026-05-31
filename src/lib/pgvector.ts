@@ -120,6 +120,14 @@ function gradeMatches(chunkGradeBand: string, requestedGradeBand?: string) {
   return requestedNumber >= start && requestedNumber <= end;
 }
 
+function schoolLevelMatches(schoolLevel?: string | null, requestedGradeBand?: string) {
+  if (!requestedGradeBand) return true;
+  if (requestedGradeBand.includes("초")) return Boolean(schoolLevel?.includes("초"));
+  if (requestedGradeBand.includes("중")) return Boolean(schoolLevel?.includes("중"));
+  if (requestedGradeBand.includes("고")) return Boolean(schoolLevel?.includes("고"));
+  return true;
+}
+
 function vectorLiteral(embedding: number[]) {
   if (embedding.length !== EMBEDDING_DIMENSION) {
     throw new ApiError(
@@ -526,8 +534,12 @@ export async function searchStandardsPgvector({
     params,
   )).rows;
 
-  const matches = rows
+  const gradeMatchedRows = rows
+    .filter((row) => schoolLevelMatches(row.school_level, gradeBand))
     .filter((row) => gradeMatches(row.grade_band, gradeBand))
+  const rowsForResponse = gradeMatchedRows.length ? gradeMatchedRows : rows;
+
+  const matches = rowsForResponse
     .slice(0, limit)
     .map((row) => toResource(row));
 
