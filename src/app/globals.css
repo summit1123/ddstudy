@@ -1609,6 +1609,37 @@
   border-color: #fed7aa;
 }
 
+.mvp-help-sentence.is-open {
+  background: linear-gradient(180deg, #fff7ed 0%, #fffbeb 100%);
+  border-color: #fb923c;
+  box-shadow: 0 14px 28px rgba(251, 146, 60, 0.16);
+}
+
+.mvp-help-preview {
+  display: block;
+  margin-top: -2px;
+  color: #9a3412;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.mvp-help-reveal {
+  display: grid;
+  gap: 7px;
+  margin-top: 6px;
+  padding: 13px;
+  border: 1px solid #fdba74;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.mvp-help-reveal span {
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .mvp-help-sentence strong {
   display: block;
   color: #7c2d12;
@@ -1616,20 +1647,28 @@
   line-height: 1.5;
 }
 
-.mvp-help-sentence div {
+.mvp-help-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 12px;
 }
 
-.mvp-help-sentence button {
+.mvp-help-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: 42px;
   border: 1px solid #fdba74;
   border-radius: 12px;
   background: #fff;
   color: #9a3412;
   font-weight: 900;
+}
+
+.mvp-help-actions button svg {
+  flex: 0 0 auto;
 }
 
 .mvp-help-sentence small {
@@ -1657,13 +1696,29 @@
 
 .mvp-student-actions button.mvp-primary {
   grid-column: 1 / -1;
+  border-color: #0576d9;
+  background: linear-gradient(135deg, #147eea, #00a6a8);
   color: #fff;
+  box-shadow: 0 14px 28px rgba(20, 126, 234, 0.24);
 }
 
 .mvp-student-actions button:hover,
 .mvp-student-actions button:focus-visible {
   border-color: #147eea;
   background: #eef7ff;
+}
+
+.mvp-student-actions button.mvp-primary:hover,
+.mvp-student-actions button.mvp-primary:focus-visible {
+  border-color: #095fc2;
+  background: linear-gradient(135deg, #095fc2, #008f95);
+  color: #fff;
+  box-shadow: 0 18px 32px rgba(20, 126, 234, 0.28);
+}
+
+.mvp-student-actions button:disabled {
+  cursor: wait;
+  opacity: 0.68;
 }
 
 .mvp-phone-bottom {
@@ -2135,7 +2190,7 @@
   }
 
   .mvp-quiz div,
-  .mvp-help-sentence div,
+  .mvp-help-actions,
   .mvp-review-metrics {
     grid-template-columns: 1fr;
   }

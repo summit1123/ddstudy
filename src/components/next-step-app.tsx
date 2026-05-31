@@ -1942,6 +1942,7 @@ function StudentTaskScreen({
   const [feedback, setFeedback] = useState("");
   const [voiceState, setVoiceState] = useState("");
   const [currentResponse, setCurrentResponse] = useState("");
+  const [revealedHelpStepId, setRevealedHelpStepId] = useState("");
   const [busy, setBusy] = useState("");
 
   useEffect(() => {
@@ -1956,6 +1957,7 @@ function StudentTaskScreen({
     setCurrentResponse(responseForStep(task.logs, step.id));
     setSelectedAnswer("");
     setFeedback("");
+    setRevealedHelpStepId("");
   }, [step?.id]);
 
   async function action(kind: "confused" | "simplify" | "help-sentence" | "complete") {
@@ -1974,7 +1976,10 @@ function StudentTaskScreen({
           : { method: "POST" },
       );
       if (kind === "simplify") setFeedback(result.easyText ?? "한 번에 한 행동만 확인해요.");
-      if (kind === "help-sentence") setFeedback(result.helpSentence ?? step.helpSentence);
+      if (kind === "help-sentence") {
+        setRevealedHelpStepId(step.id);
+        setFeedback("도움 문장을 열었어요. 이 기록은 선생님 리포트에 남아요.");
+      }
       if (kind === "confused") setFeedback("괜찮아요. 지금 막힌 순간이 선생님 리포트에 기록됐어요.");
       if (kind === "complete") {
         setFeedback("");
@@ -2059,6 +2064,10 @@ function StudentTaskScreen({
   const progress = task.steps.length ? Math.round((completed.size / task.steps.length) * 100) : 0;
   const supportOptions = normalizeSupportOptions(task.card.supportOptionsJson);
   const needsResponse = stepNeedsWrittenResponse(step);
+  const helpSentenceViewed = task.logs.some(
+    (log) => log.stepId === step.id && log.eventType === "help_sentence_viewed",
+  );
+  const showHelpSentence = revealedHelpStepId === step.id || helpSentenceViewed;
 
   if (allDone) {
     const completedStepCount = completed.size;
@@ -2220,13 +2229,20 @@ function StudentTaskScreen({
       ) : null}
 
       {hasSupportOption(supportOptions, "help_sentence") ? (
-        <section className="mvp-help-sentence">
+        <section className={showHelpSentence ? "mvp-help-sentence is-open" : "mvp-help-sentence"}>
           <p>선생님께 이렇게 말할 수 있어요</p>
-          <strong>{step.helpSentence}</strong>
-          <div>
+          {showHelpSentence ? (
+            <div className="mvp-help-reveal">
+              <span>말해볼 문장</span>
+              <strong>{step.helpSentence}</strong>
+            </div>
+          ) : (
+            <small className="mvp-help-preview">막혔을 때 누르면 선생님께 말할 문장이 크게 열리고, 리포트에 도움 요청 기록이 남아요.</small>
+          )}
+          <div className="mvp-help-actions">
             <button onClick={() => void action("help-sentence")} type="button">
               <Megaphone size={16} />
-              도움 문장 보기
+              {showHelpSentence ? "도움 문장 다시 기록" : "도움 문장 열기"}
             </button>
             <button onClick={() => void playVoice()} type="button">
               <Headphones size={16} />
