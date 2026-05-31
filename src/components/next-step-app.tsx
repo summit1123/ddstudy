@@ -1002,7 +1002,7 @@ function DashboardView({
         <MetricCard icon={Send} label="배포 과제" value={`${published.length}개`} detail="학생 화면에 노출" />
         <MetricCard icon={BarChart3} label="도움 필요" value={`${helpStudents}명`} detail="로그 기반 집계" />
       </section>
-      <section className="mvp-two-col">
+      <section className="mvp-two-col mvp-dashboard-summary">
         <div className="mvp-panel">
           <div className="mvp-panel-head">
             <div>
@@ -1037,7 +1037,7 @@ function DashboardView({
             />
           )}
         </div>
-        <div className="mvp-panel">
+        <div className="mvp-panel mvp-flow-card">
           <div className="mvp-panel-head">
             <div>
               <p className="mvp-eyebrow">수업 흐름</p>
