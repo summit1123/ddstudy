@@ -24,7 +24,8 @@
     "pgvector:up": "docker compose -f docker-compose.pgvector.yml up -d",
     "pgvector:down": "docker compose -f docker-compose.pgvector.yml down",
     "pgvector:status": "DATABASE_URL=postgresql://daeum:daeum@127.0.0.1:5433/daeum_hangeoreum RAG_VECTOR_BACKEND=pgvector tsx scripts/check-pgvector.ts",
-    "generate:assets": "tsx scripts/generate-assets.ts"
+    "generate:assets": "tsx scripts/generate-assets.ts",
+    "demo:video": "node scripts/make-demo-video.mjs"
   },
   "dependencies": {
     "@types/node": "^22.15.30",
@@ -50,6 +51,7 @@
     "@eslint/eslintrc": "^3.3.5",
     "@types/pg": "^8.20.0",
     "eslint": "^9.29.0",
-    "eslint-config-next": "^15.3.5"
+    "eslint-config-next": "^15.3.5",
+    "playwright": "^1.60.0"
   }
 }
