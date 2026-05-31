@@ -8,6 +8,7 @@ import {
   BarChart3,
   BookOpen,
   Check,
+  CheckCircle2,
   ChevronRight,
   ClipboardList,
   Headphones,
@@ -1879,11 +1880,48 @@ function StudentTaskScreen({
   const supportOptions = normalizeSupportOptions(task.card.supportOptionsJson);
 
   if (allDone) {
+    const completedStepCount = completed.size;
+    const helpCount = task.summary?.helpRequestCount ?? task.logs.filter((log) =>
+      ["confused", "simplify", "help_sentence_viewed"].includes(log.eventType)
+    ).length;
+    const correctQuizCount = task.summary?.correctQuizCount ?? task.logs.filter((log) =>
+      log.eventType === "quiz_answered" && log.payloadJson?.isCorrect === true
+    ).length;
+    const totalQuizCount = task.summary?.totalQuizCount ?? task.logs.filter((log) => log.eventType === "quiz_answered").length;
+
     return (
       <section className="mvp-student-complete">
-        <img src={DEFAULT_ASSETS.mascot} alt="" />
-        <h1>오늘 과제를 끝냈어요</h1>
-        <strong>{task.card.title}</strong>
+        <div className="mvp-complete-hero">
+          <img src={DEFAULT_ASSETS.mascot} alt="" />
+          <div>
+            <p>과제 완료</p>
+            <h1>오늘 한 걸음을 끝냈어요</h1>
+            <strong>{task.card.title}</strong>
+          </div>
+        </div>
+        <div className="mvp-complete-metrics">
+          <span>
+            <b>{completedStepCount}/{task.steps.length}</b>
+            완료 단계
+          </span>
+          <span>
+            <b>{helpCount}회</b>
+            도움 기록
+          </span>
+          <span>
+            <b>{correctQuizCount}/{totalQuizCount || task.steps.length}</b>
+            확인 퀴즈
+          </span>
+        </div>
+        <div className="mvp-complete-steps">
+          <p>오늘 한 일</p>
+          {task.steps.map((item) => (
+            <span key={item.id}>
+              <CheckCircle2 size={15} />
+              {item.stepText}
+            </span>
+          ))}
+        </div>
         <p>완료 기록과 도움 요청 기록으로 복구노트를 만들었습니다.</p>
         <button className="mvp-primary" onClick={goReview} type="button">
           돌아보기 열기
