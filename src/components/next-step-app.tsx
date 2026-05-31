@@ -2059,6 +2059,21 @@ function responsePlaceholder(step: ApiExecutionStep, task: ApiStudentTask) {
   return "내가 한 생각이나 답을 짧게 적어요.";
 }
 
+function splitStepInstruction(stepText: string) {
+  const match = stepText.match(/^(개념 알아보기|기초 문제|응용 문제|연습 문제|도전 문제)\s*[:：]\s*(.+)$/);
+  return {
+    phase: match?.[1] ?? "지금 할 일",
+    text: match?.[2] ?? stepText,
+  };
+}
+
+function materialTextForTask(task: ApiStudentTask) {
+  const assignment = task.lesson?.assignmentInstruction?.trim() ?? "";
+  const goal = task.card.goal?.trim() ?? "";
+  if (!goal || goal === assignment) return "";
+  return goal;
+}
+
 function StudentTaskScreen({
   task,
   reload,
@@ -2121,8 +2136,8 @@ function StudentTaskScreen({
       if (kind === "complete") {
         setFeedback("");
         setSelectedAnswer("");
+        await reload();
       }
-      await reload();
       onError("");
       if (kind === "complete" && task.steps.every((item) => item.id === step.id || completed.has(item.id))) {
         await requestJson(`/api/student/tasks/${task.card.id}/review${studentQuery(task.studentId)}`, { method: "POST" });
@@ -2148,7 +2163,6 @@ function StudentTaskScreen({
         },
       );
       setFeedback(result.isCorrect ? "맞았어요. 이제 완료 버튼을 눌러도 좋아요." : step.microQuizJson.explanation ?? "다시 쉽게 설명을 보고 한 번 더 확인해요.");
-      await reload();
       onError("");
     } catch (error) {
       onError(error instanceof Error ? error.message : "퀴즈 응답 저장에 실패했습니다.");
@@ -2205,6 +2219,9 @@ function StudentTaskScreen({
     (log) => log.stepId === step.id && log.eventType === "help_sentence_viewed",
   );
   const showHelpSentence = revealedHelpStepId === step.id || helpSentenceViewed;
+  const stepInstruction = splitStepInstruction(step.stepText);
+  const problemText = task.lesson?.assignmentInstruction?.trim() || task.card.goal || task.card.title;
+  const materialText = materialTextForTask(task);
 
   if (allDone) {
     const completedStepCount = completed.size;
@@ -2300,29 +2317,32 @@ function StudentTaskScreen({
       </div>
       <p className="mvp-progress-label">완료 단계 {completed.size}/{task.steps.length}</p>
 
-      <section className="mvp-mission-card">
-        <p>오늘 과제</p>
-        <strong>{task.lesson?.assignmentInstruction ?? task.card.title}</strong>
-        <small>
-          <b>쉬운 설명</b>
-          {task.card.easyExplanation}
-        </small>
+      <section className="mvp-problem-panel">
+        <span>풀 문제</span>
+        <strong>{problemText}</strong>
+        {task.card.easyExplanation ? <p>{task.card.easyExplanation}</p> : null}
       </section>
 
-      {task.card.goal ? (
-        <section className="mvp-material-card">
-          <p>{materialLabelFor(task.card)}</p>
-          <div>{task.card.goal}</div>
+      {materialText ? (
+        <section className="mvp-reading-panel">
+          <span>{materialLabelFor(task.card)}</span>
+          <div>{materialText}</div>
         </section>
       ) : null}
 
-      <article className="mvp-current-step">
-        <span>지금 할 일 · {currentIndex + 1}단계</span>
-        <h2>{step.stepText}</h2>
+      <article className="mvp-current-step mvp-work-card">
+        <div className="mvp-work-step-label">
+          <span>{currentIndex + 1}단계</span>
+          <p>{stepInstruction.phase}</p>
+        </div>
+        <h2>{stepInstruction.text}</h2>
         <VisualHintView hint={step.visualHintJson} />
         {needsResponse ? (
           <label className="mvp-step-response" htmlFor={`student-response-${step.id}`}>
-            <span>내 답 적기</span>
+            <span>
+              답 쓰는 곳
+              <b>짧게 한 문장만 적어도 괜찮아요.</b>
+            </span>
             <textarea
               id={`student-response-${step.id}`}
               value={currentResponse}
@@ -2331,23 +2351,29 @@ function StudentTaskScreen({
               rows={3}
             />
           </label>
-        ) : null}
+        ) : (
+          <p className="mvp-step-guide">읽고 나서 아래 확인 질문을 눌러요.</p>
+        )}
         {feedback ? <p className="mvp-feedback">{feedback}</p> : null}
       </article>
 
       {hasSupportOption(supportOptions, "easy_language") && task.card.keywordsJson.length > 0 ? (
-        <div className="mvp-keywords" aria-label="쉬운 말 뜻">
-          {task.card.keywordsJson.slice(0, 3).map((keyword) => (
-            <span key={keyword.word}>
-              <strong>{keyword.word}</strong>
-              {keyword.easyMeaning}
-            </span>
-          ))}
-        </div>
+        <section className="mvp-easy-words" aria-label="쉬운 말 뜻">
+          <h3>쉬운 말 먼저</h3>
+          <div>
+            {task.card.keywordsJson.slice(0, 3).map((keyword) => (
+              <span key={keyword.word}>
+                <strong>{keyword.word}</strong>
+                {keyword.easyMeaning}
+              </span>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       {hasSupportOption(supportOptions, "repeat_check") ? (
         <section className="mvp-quiz">
+          <p>확인 질문</p>
           <h3>{step.microQuizJson.question}</h3>
           <div>
             {step.microQuizJson.choices.map((choice) => (

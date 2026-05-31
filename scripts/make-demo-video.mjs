@@ -410,7 +410,7 @@ async function recordDemo() {
   await page.goto(`${baseUrl}/student/tasks/${encodeURIComponent(cardId)}?studentId=${encodeURIComponent(studentId)}`, {
     waitUntil: "domcontentloaded",
   });
-  await page.waitForSelector("text=지금 할 일", { timeout: 20_000 });
+  await page.waitForSelector(".mvp-work-card", { timeout: 20_000 });
   await scenePause(page, 3200);
 
   for (const [index, step] of task.steps.entries()) {
@@ -425,7 +425,7 @@ async function recordDemo() {
         await scenePause(page, 1800);
       }
     }
-    const responseInput = page.getByLabel("내 답 적기");
+    const responseInput = page.getByLabel(/답 쓰는 곳|내 답 적기/);
     if (await responseInput.count()) {
       await typeInto(responseInput.first(), `학생 답 ${index + 1}: ${step.microQuizJson.answer}`);
     }
@@ -435,10 +435,20 @@ async function recordDemo() {
       await scenePause(page, 1600);
     }
     await page.getByRole("button", { name: "완료했어요" }).click();
-    await scenePause(page, 2300);
+    if (index < task.steps.length - 1) {
+      await page.waitForSelector(`text=완료 단계 ${index + 1}/${task.steps.length}`, { timeout: 20_000 });
+      await page.waitForSelector(`text=${index + 2}단계`, { timeout: 20_000 });
+      if (index === 1) {
+        await caption(page, "3단계 응용 문제로 이동", "기초 문제를 끝내면 학생 화면이 마지막 답 쓰기 단계로 넘어갑니다.", 1900);
+      } else {
+        await scenePause(page, 1700);
+      }
+    } else {
+      await page.waitForURL(/\/review/, { timeout: 30_000 });
+      await scenePause(page, 1800);
+    }
   }
 
-  await page.waitForURL(/\/review/, { timeout: 30_000 }).catch(() => undefined);
   await caption(page, "6. 수업 후 돌아보기", "완료 단계, 도움 기록, 퀴즈 결과와 다음 복습 문장이 학생에게 정리됩니다.");
   await scenePause(page, 3600);
 

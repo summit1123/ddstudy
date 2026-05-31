@@ -1523,6 +1523,63 @@
   line-height: 1.72;
 }
 
+.mvp-problem-panel,
+.mvp-reading-panel,
+.mvp-easy-words {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.mvp-problem-panel {
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(180deg, #f8fbff, #eef7ff);
+}
+
+.mvp-problem-panel span,
+.mvp-reading-panel span,
+.mvp-easy-words h3,
+.mvp-quiz > p {
+  margin: 0;
+  color: #147eea;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.mvp-problem-panel strong {
+  color: #0f172a;
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+.mvp-problem-panel p {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.75);
+  color: #334155;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.mvp-reading-panel {
+  border: 1px solid #d5e2f2;
+  background: #fff;
+}
+
+.mvp-reading-panel div {
+  max-height: 138px;
+  overflow-y: auto;
+  white-space: pre-line;
+  color: #172033;
+  font-size: 15px;
+  font-weight: 850;
+  line-height: 1.72;
+}
+
 .mvp-current-step,
 .mvp-quiz,
 .mvp-help-sentence,
@@ -1543,6 +1600,33 @@
   background: #147eea;
   color: #fff;
   font-weight: 900;
+}
+
+.mvp-work-card {
+  border-color: #93c5fd;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.mvp-work-step-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.mvp-work-step-label span {
+  display: inline-flex;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #147eea;
+  color: #fff;
+  font-weight: 950;
+}
+
+.mvp-work-step-label p {
+  margin: 0;
+  color: #147eea;
+  font-size: 14px;
+  font-weight: 950;
 }
 
 .mvp-current-step h2 {
@@ -1616,13 +1700,23 @@
 }
 
 .mvp-step-response span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
   color: #0f766e;
   font-size: 14px;
 }
 
+.mvp-step-response span b {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .mvp-step-response textarea {
   width: 100%;
-  min-height: 92px;
+  min-height: 108px;
   resize: vertical;
   border: 1px solid #9bd8d1;
   border-radius: 15px;
@@ -1636,6 +1730,44 @@
 .mvp-step-response textarea:focus {
   border-color: #00a6a8;
   box-shadow: 0 0 0 3px rgba(0, 166, 168, 0.14);
+}
+
+.mvp-step-guide {
+  margin: 12px 0 0;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #ecfdf5;
+  color: #047857;
+  font-weight: 900;
+}
+
+.mvp-easy-words {
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+}
+
+.mvp-easy-words div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mvp-easy-words span {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dce7f4;
+  border-radius: 14px;
+  background: #fff;
+  color: #526174;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.mvp-easy-words strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #147eea;
+  font-size: 16px;
 }
 
 .mvp-hint-image {
@@ -2215,6 +2347,30 @@
     line-height: 1.55;
   }
 
+  .mvp-problem-panel,
+  .mvp-reading-panel,
+  .mvp-easy-words {
+    margin-top: 10px;
+    padding: 12px;
+  }
+
+  .mvp-problem-panel strong {
+    font-size: 15px;
+    line-height: 1.42;
+  }
+
+  .mvp-problem-panel p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .mvp-reading-panel div {
+    max-height: 112px;
+    padding-right: 4px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
   .mvp-keywords {
     display: flex;
     grid-template-columns: none;
@@ -2234,6 +2390,23 @@
     font-size: 15px;
   }
 
+  .mvp-easy-words div {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .mvp-easy-words span {
+    flex: 0 0 132px;
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .mvp-easy-words strong {
+    font-size: 15px;
+  }
+
   .mvp-current-step,
   .mvp-quiz,
   .mvp-help-sentence,
@@ -2247,6 +2420,15 @@
   .mvp-current-step h2 {
     margin-top: 10px;
     font-size: 22px;
+  }
+
+  .mvp-work-step-label span {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .mvp-work-step-label p {
+    font-size: 13px;
   }
 
   .mvp-sequence-hint {
