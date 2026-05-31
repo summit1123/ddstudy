@@ -247,12 +247,11 @@ async function ensureVectorStore() {
   const store = await loadVectorStore();
   if (store?.chunks.length) return store;
 
-  await ingestStandards(defaultStandards, true);
-  const created = await loadVectorStore();
-  if (!created?.chunks.length) {
-    throw new ApiError(500, "vector_store_empty", "Standards vector store is empty after ingestion.");
-  }
-  return created;
+  throw new ApiError(
+    500,
+    "vector_store_empty",
+    "Standards vector store is empty. Run the standards ingestion command instead of using seed fallback.",
+  );
 }
 
 export async function searchStandards({

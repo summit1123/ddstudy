@@ -1903,6 +1903,9 @@ function StudentTaskScreen({
       log.eventType === "quiz_answered" && log.payloadJson?.isCorrect === true
     ).length;
     const totalQuizCount = task.summary?.totalQuizCount ?? task.logs.filter((log) => log.eventType === "quiz_answered").length;
+    const review = task.summary?.generatedReviewJson ?? task.card.reviewJson;
+    const reviewPoints = review.goodPoints.length ? review.goodPoints : ["오늘 과제를 끝까지 해냈어요."];
+    const nextReview = review.nextReview[0];
 
     return (
       <section className="mvp-student-complete">
@@ -1937,7 +1940,14 @@ function StudentTaskScreen({
             </span>
           ))}
         </div>
-        <p>완료 기록과 도움 요청 기록으로 복구노트를 만들었습니다.</p>
+        <div className="mvp-complete-review">
+          <p>돌아보기</p>
+          {reviewPoints.slice(0, 2).map((item) => (
+            <span key={item}>{item}</span>
+          ))}
+          {nextReview ? <span>다음에 다시 보기: {nextReview.description}</span> : null}
+          <strong>{review.askTeacherSentence}</strong>
+        </div>
         <div className="mvp-complete-actions">
           <button onClick={() => void retryTask()} disabled={Boolean(busy)} type="button">
             처음부터 다시 하기
@@ -1967,7 +1977,10 @@ function StudentTaskScreen({
       <section className="mvp-mission-card">
         <p>오늘 과제</p>
         <strong>{task.lesson?.assignmentInstruction ?? task.card.goal}</strong>
-        <small>{task.card.easyExplanation}</small>
+        <small>
+          <b>쉬운 설명</b>
+          {task.card.easyExplanation}
+        </small>
       </section>
 
       {hasSupportOption(supportOptions, "easy_language") && task.card.keywordsJson.length > 0 ? (
@@ -1982,7 +1995,7 @@ function StudentTaskScreen({
       ) : null}
 
       <article className="mvp-current-step">
-        <span>{currentIndex + 1}단계</span>
+        <span>지금 할 일 · {currentIndex + 1}단계</span>
         <h2>{step.stepText}</h2>
         <VisualHintView hint={step.visualHintJson} />
         {feedback ? <p className="mvp-feedback">{feedback}</p> : null}
@@ -2014,11 +2027,11 @@ function StudentTaskScreen({
           <div>
             <button onClick={() => void action("help-sentence")} type="button">
               <Megaphone size={16} />
-              문장 보기 기록
+              도움 문장 보기
             </button>
             <button onClick={() => void playVoice()} type="button">
               <Headphones size={16} />
-              도움 문장 듣기
+              문장 듣기
             </button>
           </div>
           {voiceState && voiceState !== "played" && voiceState !== "loading" ? <small>{voiceState}</small> : null}

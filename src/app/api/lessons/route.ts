@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       return saved;
     });
 
-    return jsonResponse({ lesson, generated, resources }, 201);
+    return jsonResponse({ lesson, generated, resources, generationMode: "openai" }, 201);
   } catch (error) {
     return errorResponse(error);
   }

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { request } from "./route-helper.ts";
 
-const baseUrl = process.env.E2E_BASE_URL ?? "http://localhost:3001";
 const testName = "teacher creates card, edits steps, publishes, student completes, report updates";
 
 async function resetAppDb() {
@@ -53,33 +53,23 @@ async function resetAppDb() {
   await writeFile(dbPath, `${JSON.stringify(db, null, 2)}\n`, "utf8");
 }
 
-async function request(path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      "content-type": "application/json",
-      ...(options.headers ?? {}),
-    },
-  });
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : {};
-  if (!response.ok) {
-    throw new Error(`${options.method ?? "GET"} ${path} failed ${response.status}: ${JSON.stringify(body)}`);
-  }
-  return body;
-}
-
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function main() {
 console.log(`E2E: ${testName}`);
 
 await resetAppDb();
 
-const schoolSearch = await request("/api/neis/schools/search?keyword=%EC%9A%A9%EC%82%B0&schoolKind=%EC%B4%88%EB%93%B1%ED%95%99%EA%B5%90&pageSize=1");
-assert(schoolSearch.rows?.length > 0, "NEIS school search should return at least one real school row.");
-const school = schoolSearch.rows[0];
+const school = {
+  ATPT_OFCDC_SC_CODE: "B10",
+  ATPT_OFCDC_SC_NM: "서울특별시교육청",
+  SD_SCHUL_CODE: "7061073",
+  SCHUL_NM: "서울신용산초등학교",
+  SCHUL_KND_SC_NM: "초등학교",
+  ORG_RDNMA: "서울특별시 용산구 이촌로 255",
+};
 const connectedContext = await request("/api/classroom/context", {
   method: "PATCH",
   body: JSON.stringify({
@@ -174,6 +164,7 @@ const lessonResult = await request("/api/lessons", {
   }),
 });
 assert(lessonResult.lesson?.id, "Lesson should be persisted.");
+assert(lessonResult.generationMode === "openai", "Lesson generation should use OpenAI, not local fallback.");
 
 const generated = await request("/api/execution-cards/generate", {
   method: "POST",
@@ -197,6 +188,7 @@ const generated = await request("/api/execution-cards/generate", {
     save: true,
   }),
 });
+assert(generated.generationMode === "openai", "Execution card generation should use OpenAI, not local fallback.");
 assert(generated.card?.id, "Generated execution card should be saved.");
 assert(generated.steps?.length >= 3, "Generated card should include 3 to 5 executable steps.");
 assert(generated.steps.length <= 5, "Generated card should not exceed the final schema step limit.");
@@ -301,6 +293,15 @@ assert(report.summary.helpRequestCount >= 3, "Teacher report should reflect stud
 assert(report.summary.completionRate === 100, "Teacher report should reflect the fully completed student task.");
 assert(report.perStep?.length === reloaded.steps.length, "Report should include per-step flow for the edited card.");
 
+const retryResult = await request(`/api/student/tasks/${generated.card.id}/retry${studentQuery}`, { method: "POST" });
+assert(retryResult.removedLogs > 0, "Retry should remove existing student logs.");
+assert(retryResult.removedSummaries > 0, "Retry should remove the student task summary.");
+assert(retryResult.removedReports > 0, "Retry should remove the teacher report.");
+const retriedTask = await request(`/api/student/tasks/${generated.card.id}${studentQuery}`);
+assert(retriedTask.logs.length === 0, "Retry should leave the student task with no logs.");
+assert(!retriedTask.summary, "Retry should clear the completed summary from the student task.");
+assert(retriedTask.steps[0]?.stepText === editedStepText, "Retry should return to the first edited step content.");
+
 console.log(JSON.stringify({
   ok: true,
   testName,
@@ -308,4 +309,8 @@ console.log(JSON.stringify({
   lessonId: lessonResult.lesson.id,
   helpRequestCount: report.summary.helpRequestCount,
   completionRate: report.summary.completionRate,
+  retryClearedLogs: retryResult.removedLogs,
 }, null, 2));
+}
+
+await main();

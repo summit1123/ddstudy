@@ -1061,10 +1061,17 @@
 }
 
 .mvp-mission-card small {
+  display: grid;
+  gap: 3px;
   color: #526174;
   font-size: 14px;
   font-weight: 800;
   line-height: 1.5;
+}
+
+.mvp-mission-card small b {
+  color: #147eea;
+  font-size: 12px;
 }
 
 .mvp-current-step,
@@ -1399,7 +1406,8 @@
 }
 
 .mvp-complete-metrics span,
-.mvp-complete-steps {
+.mvp-complete-steps,
+.mvp-complete-review {
   border: 1px solid #dce7f4;
   border-radius: 16px;
   background: #fff;
@@ -1428,7 +1436,8 @@
   padding: 14px;
 }
 
-.mvp-complete-steps p {
+.mvp-complete-steps p,
+.mvp-complete-review p {
   margin: 0 0 2px;
   color: #0f172a;
   font-weight: 900;
@@ -1450,6 +1459,31 @@
 .mvp-complete-steps svg {
   margin-top: 2px;
   color: #10b981;
+}
+
+.mvp-complete-review {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 14px;
+}
+
+.mvp-complete-review span {
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: #253348;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.mvp-complete-review strong {
+  display: block;
+  padding: 11px;
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 15px;
 }
 
 .mvp-complete-actions {

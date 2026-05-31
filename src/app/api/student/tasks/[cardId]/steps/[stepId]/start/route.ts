@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addStudentLog } from "@/lib/db";
+import { id, updateDb } from "@/lib/db";
 import { defaultLogPayload } from "@/lib/reporting";
 import { resolveStudentId, validatePublishedStudentStep } from "@/lib/student-task-validation";
 
@@ -14,12 +14,28 @@ export async function POST(
   }
   const studentId = resolveStudentId(validation.db, request);
 
-  const log = await addStudentLog({
-    studentId,
-    cardId,
-    stepId,
-    eventType: "started",
-    payloadJson: defaultLogPayload()
+  const result = await updateDb((db) => {
+    const existing = db.studentStepLogs.find(
+      (log) =>
+        log.studentId === studentId &&
+        log.cardId === cardId &&
+        log.stepId === stepId &&
+        log.eventType === "started"
+    );
+    if (existing) return { log: existing, alreadyStarted: true };
+
+    const log = {
+      id: id("log"),
+      studentId,
+      cardId,
+      stepId,
+      eventType: "started" as const,
+      payloadJson: defaultLogPayload(),
+      createdAt: new Date().toISOString()
+    };
+    db.studentStepLogs.push(log);
+    return { log, alreadyStarted: false };
   });
-  return NextResponse.json({ log });
+
+  return NextResponse.json(result);
 }

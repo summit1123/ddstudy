@@ -1,20 +1,4 @@
-const baseUrl = process.env.E2E_BASE_URL ?? "http://localhost:3001";
-
-async function request(path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers: {
-      "content-type": "application/json",
-      ...(options.headers ?? {}),
-    },
-  });
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : {};
-  if (!response.ok) {
-    throw new Error(`${options.method ?? "GET"} ${path} failed ${response.status}: ${JSON.stringify(body)}`);
-  }
-  return body;
-}
+import { request } from "./route-helper.ts";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -55,68 +39,77 @@ const cases = [
   },
 ];
 
-console.log("E2E: RAG official metadata and generation diversity");
+async function main() {
+  console.log("E2E: RAG official metadata and generation diversity");
 
-const visualHintTypes = new Set();
-const normalizedStepTexts = [];
+  const visualHintTypes = new Set();
+  const normalizedStepTexts = [];
 
-for (const item of cases) {
-  const search = await request(
-    `/api/standards/search?q=${encodeURIComponent(item.query)}&subject=${encodeURIComponent(item.subject)}&gradeBand=${encodeURIComponent(item.grade)}&limit=3`,
-  );
-  assert(search.results?.length > 0, `${item.topic} should return standards.`);
-  const official = search.results.find((result) => result.sourceType === "official") ?? search.results[0];
-  assert(official.sourceType === "official", `${item.topic} should use official metadata in this corpus.`);
-  assert(official.sourceName && (official.sourceUrl || official.url) && official.license, `${item.topic} should include provenance.`);
+  for (const item of cases) {
+    const search = await request(
+      `/api/standards/search?q=${encodeURIComponent(item.query)}&subject=${encodeURIComponent(item.subject)}&gradeBand=${encodeURIComponent(item.grade)}&limit=3`,
+    );
+    assert(search.results?.length > 0, `${item.topic} should return standards.`);
+    const official = search.results.find((result) => result.sourceType === "official") ?? search.results[0];
+    assert(official.sourceType === "official", `${item.topic} should use official metadata in this corpus.`);
+    assert(official.sourceName && (official.sourceUrl || official.url) && official.license, `${item.topic} should include provenance.`);
 
-  const generated = await request("/api/execution-cards/generate", {
-    method: "POST",
-    body: JSON.stringify({
-      subject: item.subject,
-      grade: item.grade,
-      gradeBand: item.grade,
-      topic: item.topic,
-      title: item.topic,
-      lessonContent: item.lessonContent,
-      assignmentInstruction: item.assignmentInstruction,
-      selectedStandardId: official.citations?.[0]?.standardId ?? official.id,
-      selectedStandardCode: official.standardCode,
-      selectedStandardText: official.summary,
-      selectedStandardSourceType: official.sourceType,
-      selectedStandardSourceName: official.sourceName,
-      selectedStandardSourceUrl: official.sourceUrl ?? official.url,
-      selectedStandardLicense: official.license,
-      supportOptions: ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"],
-      save: false,
-    }),
-  });
+    const generated = await request("/api/execution-cards/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        subject: item.subject,
+        grade: item.grade,
+        gradeBand: item.grade,
+        topic: item.topic,
+        title: item.topic,
+        lessonContent: item.lessonContent,
+        assignmentInstruction: item.assignmentInstruction,
+        selectedStandardId: official.citations?.[0]?.standardId ?? official.id,
+        selectedStandardCode: official.standardCode,
+        selectedStandardText: official.summary,
+        selectedStandardSourceType: official.sourceType,
+        selectedStandardSourceName: official.sourceName,
+        selectedStandardSourceUrl: official.sourceUrl ?? official.url,
+        selectedStandardLicense: official.license,
+        supportOptions: ["easy_language", "step_breakdown", "visual_hint", "repeat_check", "help_sentence", "life_example"],
+        save: false,
+      }),
+    });
 
-  assert(generated.card?.steps?.length >= 3, `${item.topic} should generate at least 3 steps.`);
-  assert(generated.card.steps.length <= 5, `${item.topic} should generate at most 5 steps.`);
-  assert(generated.card.subject === item.subject, `${item.topic} should preserve subject.`);
-  assert(generated.card.standard.sourceType === official.sourceType, `${item.topic} should preserve sourceType provenance.`);
-  assert(generated.card.standard.sourceName === official.sourceName, `${item.topic} should preserve sourceName provenance.`);
-  assert(generated.card.standard.license === official.license, `${item.topic} should preserve license provenance.`);
-  assert(generated.card.review?.homeMission, `${item.topic} should include a life-example home mission.`);
-  assert(generated.ragTrace?.promptFields?.retrievedStandards === true, `${item.topic} should trace retrieved standards.`);
-  assert(generated.ragTrace?.retrievedContext?.some((context) => context.sourceType === "official"), `${item.topic} should trace official metadata context.`);
+    assert(generated.generationMode === "openai", `${item.topic} should use OpenAI generation, not local fallback.`);
+    assert(generated.card?.steps?.length >= 3, `${item.topic} should generate at least 3 steps.`);
+    assert(generated.card.steps.length <= 5, `${item.topic} should generate at most 5 steps.`);
+    assert(generated.card.subject === item.subject, `${item.topic} should preserve subject.`);
+    assert(generated.card.standard.sourceType === official.sourceType, `${item.topic} should preserve sourceType provenance.`);
+    assert(generated.card.standard.sourceName === official.sourceName, `${item.topic} should preserve sourceName provenance.`);
+    assert(generated.card.standard.license === official.license, `${item.topic} should preserve license provenance.`);
+    assert(generated.card.review?.homeMission, `${item.topic} should include a life-example home mission.`);
+    assert(generated.ragTrace?.promptFields?.retrievedStandards === true, `${item.topic} should trace retrieved standards.`);
+    assert(generated.ragTrace?.retrievedContext?.some((context) => context.sourceType === "official"), `${item.topic} should trace official metadata context.`);
 
-  for (const step of generated.card.steps) {
-    visualHintTypes.add(step.visualHint.type);
-    normalizedStepTexts.push(`${item.topic}: ${step.stepText}`);
+    for (const step of generated.card.steps) {
+      visualHintTypes.add(step.visualHint.type);
+      normalizedStepTexts.push(`${item.topic}: ${step.stepText}`);
+      assert(
+        !/(첫\s*번째|두\s*번째|세\s*번째|마지막|몇\s*번째|단계는|순서)/.test(step.microQuiz.question),
+        `${item.topic} micro quiz should ask about the task content, not step order: ${step.microQuiz.question}`,
+      );
+    }
+
+    if (item.subject !== "수학" || !item.topic.includes("직사각형")) {
+      const joined = generated.card.steps.map((step) => step.stepText).join(" ");
+      assert(!joined.includes("가로와 세로를 찾아요"), `${item.topic} should not reuse the rectangle sample step verbatim.`);
+    }
   }
 
-  if (item.subject !== "수학" || !item.topic.includes("직사각형")) {
-    const joined = generated.card.steps.map((step) => step.stepText).join(" ");
-    assert(!joined.includes("가로와 세로를 찾아요"), `${item.topic} should not reuse the rectangle sample step verbatim.`);
-  }
+  assert(new Set(normalizedStepTexts).size >= cases.length * 2, "Generated steps should vary across topics.");
+  assert(visualHintTypes.size >= 2, "Generated cards should use more than one visual hint type across diverse topics.");
+
+  console.log(JSON.stringify({
+    ok: true,
+    cases: cases.map((item) => item.topic),
+    visualHintTypes: Array.from(visualHintTypes).sort(),
+  }, null, 2));
 }
 
-assert(new Set(normalizedStepTexts).size >= cases.length * 2, "Generated steps should vary across topics.");
-assert(visualHintTypes.size >= 2, "Generated cards should use more than one visual hint type across diverse topics.");
-
-console.log(JSON.stringify({
-  ok: true,
-  cases: cases.map((item) => item.topic),
-  visualHintTypes: Array.from(visualHintTypes).sort(),
-}, null, 2));
+await main();
