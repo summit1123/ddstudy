@@ -1872,6 +1872,21 @@ function StudentTaskScreen({
     }
   }
 
+  async function retryTask() {
+    setBusy("retry");
+    try {
+      await requestJson(`/api/student/tasks/${task.card.id}/retry${studentQuery(task.studentId)}`, { method: "POST" });
+      setFeedback("");
+      setSelectedAnswer("");
+      await reload();
+      onError("");
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "과제를 다시 시작하지 못했습니다.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   if (!step) {
     return <EmptyState title="배포된 단계가 없습니다" body="선생님이 실행카드를 배포하면 여기에 표시됩니다." />;
   }
@@ -1923,9 +1938,14 @@ function StudentTaskScreen({
           ))}
         </div>
         <p>완료 기록과 도움 요청 기록으로 복구노트를 만들었습니다.</p>
-        <button className="mvp-primary" onClick={goReview} type="button">
-          돌아보기 열기
-        </button>
+        <div className="mvp-complete-actions">
+          <button onClick={() => void retryTask()} disabled={Boolean(busy)} type="button">
+            처음부터 다시 하기
+          </button>
+          <button className="mvp-primary" onClick={goReview} disabled={Boolean(busy)} type="button">
+            돌아보기 열기
+          </button>
+        </div>
       </section>
     );
   }
@@ -1943,6 +1963,12 @@ function StudentTaskScreen({
         <span style={{ width: `${progress}%` }} />
       </div>
       <p className="mvp-progress-label">완료 단계 {completed.size}/{task.steps.length}</p>
+
+      <section className="mvp-mission-card">
+        <p>오늘 과제</p>
+        <strong>{task.lesson?.assignmentInstruction ?? task.card.goal}</strong>
+        <small>{task.card.easyExplanation}</small>
+      </section>
 
       {hasSupportOption(supportOptions, "easy_language") && task.card.keywordsJson.length > 0 ? (
         <div className="mvp-keywords">

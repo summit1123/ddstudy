@@ -1038,6 +1038,35 @@
   font-size: 16px;
 }
 
+.mvp-mission-card {
+  display: grid;
+  gap: 7px;
+  margin-top: 16px;
+  padding: 15px;
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f8fbff, #eef7ff);
+}
+
+.mvp-mission-card p {
+  margin: 0;
+  color: #147eea;
+  font-weight: 900;
+}
+
+.mvp-mission-card strong {
+  color: #0f172a;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.mvp-mission-card small {
+  color: #526174;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
 .mvp-current-step,
 .mvp-quiz,
 .mvp-help-sentence,
@@ -1421,6 +1450,31 @@
 .mvp-complete-steps svg {
   margin-top: 2px;
   color: #10b981;
+}
+
+.mvp-complete-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mvp-complete-actions button {
+  min-height: 46px;
+  border: 1px solid #cddaea;
+  border-radius: 14px;
+  background: #fff;
+  color: #253348;
+  font-weight: 900;
+}
+
+.mvp-complete-actions button:hover,
+.mvp-complete-actions button:focus-visible {
+  border-color: #147eea;
+  background: #eef7ff;
+}
+
+.mvp-complete-actions button.mvp-primary {
+  color: #fff;
 }
 
 @media (max-width: 1160px) {
