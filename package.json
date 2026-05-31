@@ -25,7 +25,9 @@
     "pgvector:down": "docker compose -f docker-compose.pgvector.yml down",
     "pgvector:status": "DATABASE_URL=postgresql://daeum:daeum@127.0.0.1:5433/daeum_hangeoreum RAG_VECTOR_BACKEND=pgvector tsx scripts/check-pgvector.ts",
     "generate:assets": "tsx scripts/generate-assets.ts",
-    "demo:video": "node scripts/make-demo-video.mjs"
+    "demo:video": "node scripts/make-demo-video.mjs",
+    "deploy:local": "bash scripts/ddstudy-install-launchagent.sh",
+    "deploy:local:stop": "bash scripts/ddstudy-local-demo-stop.sh"
   },
   "dependencies": {
     "@types/node": "^22.15.30",
