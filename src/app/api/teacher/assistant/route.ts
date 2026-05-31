@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       schema: assistantAnswerJsonSchema,
       zodSchema: AssistantAnswerSchema,
       system:
-        "You are a Korean teacher support assistant for slow learners. Answer only from the supplied student profile, task, logs, and report evidence. Do not invent unseen records. Be practical, short, and classroom-ready.",
+        "You are a Korean teacher support assistant for slow learners. Answer only from the supplied student profile, task, logs, and report evidence. Do not invent unseen records. Be practical, short, and classroom-ready. Keep answer as two compact sentences; put concrete teacher actions in nextActions, not as a long numbered paragraph.",
       user: [
         `Teacher question: ${input.question}`,
         `Student: ${student.nickname}`,

@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element, react-hooks/exhaustive-deps */
 
 import type * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -421,12 +421,33 @@ function TeacherSidebarAssistant({
   const [studentId, setStudentId] = useState("");
   const [question, setQuestion] = useState("이 학생이 막힌 단계에서 바로 해볼 지원은 무엇인가요?");
   const [assistant, setAssistant] = useState<ApiTeacherAssistant | null>(null);
+  const [assistantMarkdown, setAssistantMarkdown] = useState("");
+  const [streamedAssistantMarkdown, setStreamedAssistantMarkdown] = useState("");
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState("");
+  const answerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!studentId && context?.students[0]?.id) setStudentId(context.students[0].id);
   }, [context?.students, studentId]);
+
+  useEffect(() => {
+    if (!assistantMarkdown) {
+      setStreamedAssistantMarkdown("");
+      return;
+    }
+
+    let visibleLength = 0;
+    setStreamedAssistantMarkdown("");
+    const intervalId = window.setInterval(() => {
+      visibleLength = Math.min(assistantMarkdown.length, visibleLength + 4);
+      setStreamedAssistantMarkdown(assistantMarkdown.slice(0, visibleLength));
+      answerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (visibleLength >= assistantMarkdown.length) window.clearInterval(intervalId);
+    }, 16);
+
+    return () => window.clearInterval(intervalId);
+  }, [assistantMarkdown]);
 
   const student = context?.students.find((item) => item.id === studentId) ?? context?.students[0] ?? null;
   const activeCardId =
@@ -442,6 +463,9 @@ function TeacherSidebarAssistant({
     }
     setState("loading");
     setError("");
+    setAssistant(null);
+    setAssistantMarkdown("");
+    setStreamedAssistantMarkdown("");
     try {
       const result = await requestJson<ApiTeacherAssistant>("/api/teacher/assistant", {
         method: "POST",
@@ -452,9 +476,12 @@ function TeacherSidebarAssistant({
         }),
       });
       setAssistant(result);
+      setAssistantMarkdown(formatAssistantMarkdown(result.answer));
       setState("idle");
     } catch (error) {
       setAssistant(null);
+      setAssistantMarkdown("");
+      setStreamedAssistantMarkdown("");
       setState("error");
       setError(error instanceof Error ? error.message : "학생 지원 답변을 만들지 못했습니다.");
     }
@@ -478,6 +505,8 @@ function TeacherSidebarAssistant({
               onChange={(event) => {
                 setStudentId(event.target.value);
                 setAssistant(null);
+                setAssistantMarkdown("");
+                setStreamedAssistantMarkdown("");
               }}
             >
               {context?.students.map((item) => (
@@ -510,15 +539,16 @@ function TeacherSidebarAssistant({
             리포트 보기
           </button>
           {error ? <p className="mvp-sidebar-error">{error}</p> : null}
+          {state === "loading" ? (
+            <div className="mvp-sidebar-answer mvp-sidebar-answer-loading" aria-live="polite">
+              <span className="mvp-stream-dot" />
+              추천 지원을 정리하는 중입니다...
+            </div>
+          ) : null}
           {assistant ? (
-            <div className="mvp-sidebar-answer">
-              <strong>추천 지원</strong>
-              <p>{assistant.answer.answer}</p>
-              <ul>
-                {assistant.answer.nextActions.slice(0, 2).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+            <div ref={answerRef} className="mvp-sidebar-answer mvp-sidebar-answer-stream" aria-live="polite">
+              <MarkdownBlocks markdown={streamedAssistantMarkdown || assistantMarkdown} />
+              {streamedAssistantMarkdown.length < assistantMarkdown.length ? <span className="mvp-stream-caret" /> : null}
             </div>
           ) : null}
         </>
@@ -526,6 +556,112 @@ function TeacherSidebarAssistant({
         <p className="mvp-sidebar-empty">학생을 등록하면 지원 질문과 리포트 연결이 활성화됩니다.</p>
       )}
     </section>
+  );
+}
+
+function formatAssistantMarkdown(answer: ApiTeacherAssistant["answer"]) {
+  const actions = answer.nextActions.slice(0, 3).map((item) => `- ${item}`).join("\n");
+  const evidence = answer.evidence.length > 0
+    ? `\n\n**근거**\n${answer.evidence.slice(0, 2).map((item) => `- ${item}`).join("\n")}`
+    : "";
+
+  return [
+    "### 추천 지원",
+    "",
+    answer.answer,
+    "",
+    "**바로 해볼 일**",
+    actions,
+    "",
+    "**학생에게 물어볼 말**",
+    answer.questionToAskStudent,
+    evidence,
+  ].filter(Boolean).join("\n");
+}
+
+function MarkdownBlocks({ markdown }: { markdown: string }) {
+  const blocks: React.ReactNode[] = [];
+  const lines = markdown.split("\n");
+  let index = 0;
+
+  while (index < lines.length) {
+    const rawLine = lines[index];
+    const line = rawLine.trim();
+
+    if (!line) {
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("### ")) {
+      blocks.push(
+        <h4 key={`heading-${index}`}>
+          <InlineMarkdown text={line.slice(4)} />
+        </h4>,
+      );
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("- ")) {
+      const items: string[] = [];
+      while (index < lines.length && lines[index].trim().startsWith("- ")) {
+        items.push(lines[index].trim().slice(2));
+        index += 1;
+      }
+      blocks.push(
+        <ul key={`ul-${index}`} className="mvp-markdown-list">
+          {items.map((item, itemIndex) => (
+            <li key={`${item}-${itemIndex}`}>
+              <InlineMarkdown text={item} />
+            </li>
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+
+    if (/^\d+\.\s/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\d+\.\s/.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(/^\d+\.\s/, ""));
+        index += 1;
+      }
+      blocks.push(
+        <ol key={`ol-${index}`} className="mvp-markdown-list">
+          {items.map((item, itemIndex) => (
+            <li key={`${item}-${itemIndex}`}>
+              <InlineMarkdown text={item} />
+            </li>
+          ))}
+        </ol>,
+      );
+      continue;
+    }
+
+    blocks.push(
+      <p key={`p-${index}`}>
+        <InlineMarkdown text={line} />
+      </p>,
+    );
+    index += 1;
+  }
+
+  return <>{blocks}</>;
+}
+
+function InlineMarkdown({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong>;
+        }
+        return <span key={`${part}-${index}`}>{part}</span>;
+      })}
+    </>
   );
 }
 
