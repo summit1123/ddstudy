@@ -209,6 +209,22 @@ type ApiReport = {
   }>;
 };
 
+type ApiTeacherAssistant = {
+  student: {
+    id: string;
+    nickname: string;
+    profile: string;
+    supportOptions: string[];
+  };
+  card: { id: string; title: string; subject: string; grade: string } | null;
+  answer: {
+    answer: string;
+    nextActions: string[];
+    questionToAskStudent: string;
+    evidence: string[];
+  };
+};
+
 const PROFILE_PRESETS = [
   {
     label: "긴 문장 이해 어려움",
@@ -350,9 +366,15 @@ function getHintText(value?: Record<string, unknown> | null) {
 function TeacherNav({
   view,
   onMove,
+  context,
+  bundles,
+  onOpenReport,
 }: {
   view: TeacherView;
   onMove: (next: TeacherView) => void;
+  context: ApiClassroomContext | null;
+  bundles: CardBundle[];
+  onOpenReport: (studentId: string) => void;
 }) {
   const items: Array<{ id: TeacherView; label: string; icon: React.ComponentType<{ size?: number }> }> = [
     { id: "dashboard", label: "교실 운영", icon: LayoutDashboard },
@@ -382,11 +404,128 @@ function TeacherNav({
           );
         })}
       </nav>
-      <div className="mvp-sidebar-note">
-        <img src={DEFAULT_ASSETS.robot} alt="" />
-        <p>학생이 막힌 단계와 도움 요청은 리포트에서 바로 확인할 수 있습니다.</p>
-      </div>
+      <TeacherSidebarAssistant context={context} bundles={bundles} onOpenReport={onOpenReport} />
     </aside>
+  );
+}
+
+function TeacherSidebarAssistant({
+  context,
+  bundles,
+  onOpenReport,
+}: {
+  context: ApiClassroomContext | null;
+  bundles: CardBundle[];
+  onOpenReport: (studentId: string) => void;
+}) {
+  const [studentId, setStudentId] = useState("");
+  const [question, setQuestion] = useState("이 학생이 막힌 단계에서 바로 해볼 지원은 무엇인가요?");
+  const [assistant, setAssistant] = useState<ApiTeacherAssistant | null>(null);
+  const [state, setState] = useState<LoadState>("idle");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!studentId && context?.students[0]?.id) setStudentId(context.students[0].id);
+  }, [context?.students, studentId]);
+
+  const student = context?.students.find((item) => item.id === studentId) ?? context?.students[0] ?? null;
+  const activeCardId =
+    context?.activeCardId && bundles.some((bundle) => bundle.card.id === context.activeCardId)
+      ? context.activeCardId
+      : bundles.find((bundle) => bundle.card.status === "published")?.card.id ?? bundles[0]?.card.id ?? "";
+  const summary = student ? context?.summariesByStudentId?.[student.id] ?? null : null;
+
+  async function askAssistant() {
+    if (!student) {
+      setError("먼저 학생을 등록해 주세요.");
+      return;
+    }
+    setState("loading");
+    setError("");
+    try {
+      const result = await requestJson<ApiTeacherAssistant>("/api/teacher/assistant", {
+        method: "POST",
+        body: JSON.stringify({
+          studentId: student.id,
+          cardId: activeCardId || undefined,
+          question,
+        }),
+      });
+      setAssistant(result);
+      setState("idle");
+    } catch (error) {
+      setAssistant(null);
+      setState("error");
+      setError(error instanceof Error ? error.message : "학생 지원 답변을 만들지 못했습니다.");
+    }
+  }
+
+  return (
+    <section className="mvp-sidebar-assistant" aria-label="학생별 지원 챗봇">
+      <div className="mvp-sidebar-assistant-head">
+        <img src={DEFAULT_ASSETS.robot} alt="" />
+        <div>
+          <strong>학생별 지원 챗봇</strong>
+          <p>학생이 막힌 단계와 도움 요청은 리포트에서 바로 확인할 수 있습니다.</p>
+        </div>
+      </div>
+      {student ? (
+        <>
+          <label>
+            학생
+            <select
+              value={student.id}
+              onChange={(event) => {
+                setStudentId(event.target.value);
+                setAssistant(null);
+              }}
+            >
+              {context?.students.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.nickname}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="mvp-sidebar-student-card">
+            <b>{profileFromStudent(student)}</b>
+            <span>
+              완료 {summary?.completionRate ?? 0}% · 도움 {summary?.helpRequestCount ?? 0}회 · 막힌 단계{" "}
+              {summary?.stuckStepCount ?? 0}개
+            </span>
+          </div>
+          <label>
+            질문
+            <textarea
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              rows={3}
+            />
+          </label>
+          <button className="mvp-primary" onClick={askAssistant} type="button" disabled={state === "loading"}>
+            {state === "loading" ? <Loader2 size={16} className="mvp-spin" /> : <Send size={16} />}
+            프로필 질문하기
+          </button>
+          <button className="mvp-secondary" onClick={() => onOpenReport(student.id)} type="button">
+            리포트 보기
+          </button>
+          {error ? <p className="mvp-sidebar-error">{error}</p> : null}
+          {assistant ? (
+            <div className="mvp-sidebar-answer">
+              <strong>추천 지원</strong>
+              <p>{assistant.answer.answer}</p>
+              <ul>
+                {assistant.answer.nextActions.slice(0, 2).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <p className="mvp-sidebar-empty">학생을 등록하면 지원 질문과 리포트 연결이 활성화됩니다.</p>
+      )}
+    </section>
   );
 }
 
@@ -1410,6 +1549,10 @@ function ReportsView({
   const [state, setState] = useState<LoadState>("idle");
 
   useEffect(() => {
+    if (initialStudentId) setStudentId(initialStudentId);
+  }, [initialStudentId]);
+
+  useEffect(() => {
     if (!studentId && context?.students[0]?.id) setStudentId(context.students[0].id);
     if (!cardId && bundles[0]?.card.id) setCardId(bundles[0].card.id);
   }, [context?.students, bundles, cardId, studentId]);
@@ -1484,22 +1627,41 @@ function ReportsView({
             <MetricCard icon={BookOpen} label="퀴즈" value={`${report.summary.correctQuizCount}/${report.summary.totalQuizCount}`} detail="정답 / 응답" />
             <MetricCard icon={BarChart3} label="막힌 단계" value={`${report.summary.stuckStepCount}개`} detail={formatSeconds(report.summary.totalTimeSeconds)} />
           </section>
+          <section className="mvp-report-summary-card">
+            <strong>리포트 요약</strong>
+            <p>{report.report.summary}</p>
+          </section>
           <div className="mvp-split">
             <section>
               <h3>단계별 수행 흐름</h3>
               <div className="mvp-report-steps">
-                {report.perStep.map((item) => (
-                  <article key={item.step.id}>
-                    <span>{item.step.order}</span>
-                    <div>
-                      <strong>{item.step.stepText}</strong>
-                      <small>
-                        {item.isCompleted ? "완료됨" : "진행 전"} · 도움 {item.confusedCount + item.simplifyCount + (item.helpSentenceViewedCount ?? 0)}회 · 퀴즈 {item.quizAnswered ? (item.isCorrect ? "정답" : "오답") : "미응답"}
-                      </small>
-                      {item.studentResponse ? <em>학생 답: {item.studentResponse}</em> : null}
-                    </div>
-                  </article>
-                ))}
+                {report.perStep.map((item) => {
+                  const helpCount = item.confusedCount + item.simplifyCount + (item.helpSentenceViewedCount ?? 0);
+                  const attention = helpCount > 0 || (item.quizAnswered && !item.isCorrect) || !item.isCompleted;
+                  return (
+                    <article key={item.step.id} className={attention ? "is-attention" : ""}>
+                      <span>{item.step.order}</span>
+                      <div>
+                        <strong>{item.step.stepText}</strong>
+                        <small>
+                          {item.isCompleted ? "완료됨" : "진행 전"} · 도움 {helpCount}회 · 퀴즈{" "}
+                          {item.quizAnswered ? (item.isCorrect ? "정답" : "오답") : "미응답"} · 소요{" "}
+                          {formatSeconds(item.timeSeconds)}
+                        </small>
+                        {attention ? (
+                          <div className="mvp-step-flags">
+                            {item.confusedCount ? <b>모르겠어요 {item.confusedCount}회</b> : null}
+                            {item.simplifyCount ? <b>쉬운 설명 {item.simplifyCount}회</b> : null}
+                            {item.helpSentenceViewedCount ? <b>도움 문장 {item.helpSentenceViewedCount}회</b> : null}
+                            {item.quizAnswered && !item.isCorrect ? <b>퀴즈 오답</b> : null}
+                            {!item.isCompleted ? <b>미완료</b> : null}
+                          </div>
+                        ) : null}
+                        {item.studentResponse ? <em>학생 답: {item.studentResponse}</em> : null}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
             <section>
@@ -1542,6 +1704,7 @@ export function TeacherApp({
   const [context, setContext] = useState<ApiClassroomContext | null>(null);
   const [bundles, setBundles] = useState<CardBundle[]>([]);
   const [activeCardId, setActiveCardId] = useState(initialCardId ?? "");
+  const [reportStudentId, setReportStudentId] = useState(initialStudentId ?? "");
   const [state, setState] = useState<LoadState>("loading");
   const [error, setError] = useState("");
 
@@ -1581,6 +1744,7 @@ export function TeacherApp({
   useEffect(() => {
     setView(initialView);
     if (initialCardId) setActiveCardId(initialCardId);
+    if (initialStudentId) setReportStudentId(initialStudentId);
   }, [initialView, initialCardId]);
 
   useEffect(() => {
@@ -1595,15 +1759,22 @@ export function TeacherApp({
     if (next === "cards") router.push(cardId ? `/teacher/cards/${encodeURIComponent(cardId)}/edit` : "/teacher/cards");
     if (next === "reports") {
       const studentId = initialStudentId ?? context?.students[0]?.id;
+      if (studentId) setReportStudentId(studentId);
       router.push(studentId ? `/teacher/reports/${encodeURIComponent(studentId)}` : "/teacher/reports");
     }
+  }
+
+  function openStudentReport(studentId: string) {
+    setReportStudentId(studentId);
+    setView("reports");
+    router.push(`/teacher/reports/${encodeURIComponent(studentId)}`);
   }
 
   const activeBundle = bundles.find((bundle) => bundle.card.id === activeCardId) ?? bundles[0] ?? null;
 
   return (
     <main className="mvp-app mvp-teacher-app">
-      <TeacherNav view={view} onMove={move} />
+      <TeacherNav view={view} onMove={move} context={context} bundles={bundles} onOpenReport={openStudentReport} />
       <section className="mvp-teacher-main">
         <TopBar context={context} state={state} onRefresh={() => void refresh(activeCardId)} />
         <ErrorBanner message={error} onRetry={() => void refresh(activeCardId)} />
@@ -1624,7 +1795,7 @@ export function TeacherApp({
           <CardEditorView bundle={activeBundle} onError={setError} onMove={move} onSaved={(cardId) => refresh(cardId)} />
         ) : null}
         {view === "reports" ? (
-          <ReportsView context={context} bundles={bundles} initialStudentId={initialStudentId} onError={setError} />
+          <ReportsView context={context} bundles={bundles} initialStudentId={reportStudentId || initialStudentId} onError={setError} />
         ) : null}
       </section>
     </main>

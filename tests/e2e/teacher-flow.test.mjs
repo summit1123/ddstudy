@@ -287,6 +287,20 @@ assert(report.summary.helpRequestCount >= 3, "Teacher report should reflect stud
 assert(report.summary.completionRate === 100, "Teacher report should reflect the fully completed student task.");
 assert(report.perStep?.length === reloaded.steps.length, "Report should include per-step flow for the edited card.");
 assert(report.perStep[0].studentResponse?.includes("학생 답 1"), "Report should expose the student's written step response.");
+assert(report.report.summary.includes("1단계"), "Report summary should name the first stuck step.");
+assert(report.report.difficultyTagsJson.includes("도움 요청"), "Report should tag help sentence usage as a help-request signal.");
+
+const assistant = await request("/api/teacher/assistant", {
+  method: "POST",
+  body: JSON.stringify({
+    studentId: studentResult.student.id,
+    cardId: generated.card.id,
+    question: "이 학생이 막힌 단계에서 바로 해볼 지원은 무엇인가요?",
+  }),
+});
+assert(assistant.answer?.answer, "Student assistant should return an evidence-based answer.");
+assert(assistant.answer?.evidence?.length > 0, "Student assistant should cite report evidence.");
+assert(assistant.answer?.nextActions?.length >= 2, "Student assistant should provide actionable next steps.");
 
 const retryResult = await request(`/api/student/tasks/${generated.card.id}/retry${studentQuery}`, { method: "POST" });
 assert(retryResult.removedLogs > 0, "Retry should remove existing student logs.");

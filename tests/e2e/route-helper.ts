@@ -26,6 +26,7 @@ function loadRoutes() {
     const reports = await import("../../src/app/api/reports/students/[studentId]/route");
     const standards = await import("../../src/app/api/standards/search/route");
     const students = await import("../../src/app/api/students/route");
+    const teacherAssistant = await import("../../src/app/api/teacher/assistant/route");
     const studentTask = await import("../../src/app/api/student/tasks/[cardId]/route");
     const retryTask = await import("../../src/app/api/student/tasks/[cardId]/retry/route");
     const reviewTask = await import("../../src/app/api/student/tasks/[cardId]/review/route");
@@ -46,6 +47,7 @@ function loadRoutes() {
       getStudentReport: reports.GET,
       searchStandards: standards.GET,
       postStudent: students.POST,
+      postTeacherAssistant: teacherAssistant.POST,
       getStudentTask: studentTask.GET,
       retryStudentTask: retryTask.POST,
       reviewStudentTask: reviewTask.POST,
@@ -102,6 +104,9 @@ export async function request(path: string, options: RequestInit = {}) {
   }
   if (pathname === "/api/students" && method === "POST") {
     return call(routes.postStudent, fullPath, {}, options);
+  }
+  if (pathname === "/api/teacher/assistant" && method === "POST") {
+    return call(routes.postTeacherAssistant, fullPath, {}, options);
   }
   if (pathname === "/api/lessons" && method === "POST") {
     return call(routes.postLesson, fullPath, {}, options);
