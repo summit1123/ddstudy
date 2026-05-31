@@ -1671,6 +1671,19 @@
   font-weight: 800;
 }
 
+.mvp-sequence-hint span.is-current {
+  border-color: #147eea;
+  background: #eaf6ff;
+  color: #0f4f94;
+  box-shadow: inset 3px 0 0 #147eea;
+}
+
+.mvp-sequence-hint span.is-done {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
 .mvp-sequence-hint b {
   display: grid;
   place-items: center;
@@ -1730,6 +1743,37 @@
 .mvp-step-response textarea:focus {
   border-color: #00a6a8;
   box-shadow: 0 0 0 3px rgba(0, 166, 168, 0.14);
+}
+
+.mvp-step-checklist {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.mvp-step-checklist span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.mvp-step-checklist span.is-done {
+  color: #047857;
+}
+
+.mvp-step-checklist span.is-ready {
+  color: #147eea;
+}
+
+.mvp-step-checklist svg {
+  flex: 0 0 auto;
 }
 
 .mvp-step-guide {

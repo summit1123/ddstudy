@@ -389,8 +389,52 @@ async function recordDemo() {
   await scenePause(page, 2500);
 
   await caption(page, "3. AI 실행카드 생성", "RAG 검색 결과와 학생 프로필을 바탕으로 개념, 단계, 퀴즈, 도움 문장을 생성합니다.", 3200);
-  await page.getByRole("button", { name: /실행카드 생성/ }).click();
-  await page.waitForURL(/\/teacher\/cards\/.+\/edit/, { timeout: 180_000 });
+  const generationContext = await requestJson("/api/classroom/context");
+  const selectedStudent = generationContext.students[0];
+  const supportOptions = [
+    "easy_language",
+    "step_breakdown",
+    "visual_hint",
+    "repeat_check",
+    "help_sentence",
+    "life_example",
+  ];
+  const lessonResult = await requestJson("/api/lessons", {
+    method: "POST",
+    body: JSON.stringify({
+      teacherId: generationContext.teacher.id,
+      classroomId: generationContext.classroom.id,
+      schoolId: generationContext.school.id,
+      subject: "국어",
+      gradeBand: `초${generationContext.classroom.grade}`,
+      topic: "인물의 마음 찾기",
+      title: "인물의 마음 찾기",
+      lessonDate: "2026-05-29",
+      lessonContent: "이야기를 읽고 인물의 말과 행동에서 마음을 짐작하는 방법을 배웁니다.",
+      assignmentInstruction: "짧은 글을 읽고 인물의 마음이 드러나는 문장을 찾은 뒤, 왜 그렇게 생각했는지 한 문장으로 써 봅시다.",
+      supportOptions,
+      objectives: [
+        "인물의 말과 행동에서 마음이 드러나는 문장을 찾습니다.",
+        "찾은 문장을 근거로 이유를 짧게 씁니다.",
+      ],
+    }),
+  });
+  const generatedCard = await requestJson("/api/execution-cards/generate", {
+    method: "POST",
+    body: JSON.stringify({
+      lessonId: lessonResult.lesson.id,
+      subject: "국어",
+      grade: `초${generationContext.classroom.grade}`,
+      gradeBand: `초${generationContext.classroom.grade}`,
+      topic: "인물의 마음 찾기",
+      title: "인물의 마음 찾기",
+      lessonContent: lessonResult.lesson.lessonContent,
+      assignmentInstruction: lessonResult.lesson.assignmentInstruction,
+      supportOptions,
+      save: true,
+    }),
+  });
+  await page.goto(`${baseUrl}/teacher/cards/${encodeURIComponent(generatedCard.card.id)}/edit`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("text=실행카드 편집", { timeout: 20_000 });
   await scenePause(page, 3200);
 
@@ -402,7 +446,7 @@ async function recordDemo() {
   await scenePause(page, 2600);
 
   const contextData = await requestJson("/api/classroom/context");
-  const studentId = contextData.students[0].id;
+  const studentId = selectedStudent.id;
   const cardId = contextData.activeCardId;
   const task = await requestJson(`/api/student/tasks/${encodeURIComponent(cardId)}?studentId=${encodeURIComponent(studentId)}`);
 
@@ -419,33 +463,45 @@ async function recordDemo() {
       await scenePause(page, 1600);
       await page.getByRole("button", { name: "다시 쉽게 말해줘" }).click();
       await scenePause(page, 1800);
-      const helpButton = page.getByRole("button", { name: /도움 문장 보기/ });
+      const helpButton = page.getByRole("button", { name: /도움 문장 (열기|보기|다시 기록)/ });
       if (await helpButton.count()) {
         await helpButton.click();
         await scenePause(page, 1800);
       }
     }
+    await page.locator(".mvp-work-card").scrollIntoViewIfNeeded();
+    await caption(
+      page,
+      `${index + 1}단계 수행`,
+      index === 0
+        ? "개념을 확인하고 막힘/쉬운 설명/도움 문장 기록을 남깁니다."
+        : index === task.steps.length - 1
+          ? "마지막 응용 답을 적고 완료하면 복구노트로 이동합니다."
+          : "학생이 직접 답을 적고 확인 질문에 응답한 뒤 다음 단계로 넘어갑니다.",
+      3600,
+    );
     const responseInput = page.getByLabel(/답 쓰는 곳|내 답 적기/);
     if (await responseInput.count()) {
       await typeInto(responseInput.first(), `학생 답 ${index + 1}: ${step.microQuizJson.answer}`);
+      await scenePause(page, 1900);
     }
     const answerButton = page.getByRole("button", { name: step.microQuizJson.answer }).first();
     if (await answerButton.count()) {
       await answerButton.click();
-      await scenePause(page, 1600);
+      await scenePause(page, 2300);
     }
-    await page.getByRole("button", { name: "완료했어요" }).click();
+    await page.getByRole("button", { name: /완료하고/ }).click();
     if (index < task.steps.length - 1) {
       await page.waitForSelector(`text=완료 단계 ${index + 1}/${task.steps.length}`, { timeout: 20_000 });
       await page.waitForSelector(`text=${index + 2}단계`, { timeout: 20_000 });
       if (index === 1) {
-        await caption(page, "3단계 응용 문제로 이동", "기초 문제를 끝내면 학생 화면이 마지막 답 쓰기 단계로 넘어갑니다.", 1900);
+        await caption(page, "3단계 응용 문제로 이동", "기초 문제를 끝내면 학생 화면이 마지막 답 쓰기 단계로 넘어갑니다.", 3200);
       } else {
-        await scenePause(page, 1700);
+        await scenePause(page, 2600);
       }
     } else {
       await page.waitForURL(/\/review/, { timeout: 30_000 });
-      await scenePause(page, 1800);
+      await scenePause(page, 2600);
     }
   }
 

@@ -1972,7 +1972,15 @@ function StudentBottom({
   );
 }
 
-function VisualHintView({ hint, compact = false }: { hint?: VisualHint | null; compact?: boolean }) {
+function VisualHintView({
+  hint,
+  compact = false,
+  activeIndex,
+}: {
+  hint?: VisualHint | null;
+  compact?: boolean;
+  activeIndex?: number;
+}) {
   if (!hint) return null;
   if (hint.type === "image_asset" && hint.assetUrl) {
     return <img className="mvp-hint-image" src={hint.assetUrl} alt={hint.alt ?? "시각 단서"} />;
@@ -2019,7 +2027,18 @@ function VisualHintView({ hint, compact = false }: { hint?: VisualHint | null; c
     return (
       <div className="mvp-sequence-hint">
         {(items.length ? items : ["첫 행동 확인", "다음 행동 선택", "답 확인"]).slice(0, 5).map((item, index) => (
-          <span key={`${item}-${index}`}>
+          <span
+            key={`${item}-${index}`}
+            className={
+              typeof activeIndex === "number"
+                ? index < activeIndex
+                  ? "is-done"
+                  : index === activeIndex
+                    ? "is-current"
+                    : ""
+                : ""
+            }
+          >
             <b>{index + 1}</b>
             {item}
           </span>
@@ -2115,8 +2134,16 @@ function StudentTaskScreen({
   async function action(kind: "confused" | "simplify" | "help-sentence" | "complete") {
     if (!step) return;
     const needsResponse = stepNeedsWrittenResponse(step);
+    const quizRequired = hasSupportOption(normalizeSupportOptions(task.card.supportOptionsJson), "repeat_check");
+    const quizAnswered =
+      Boolean(selectedAnswer) ||
+      task.logs.some((log) => log.stepId === step.id && log.eventType === "quiz_answered");
     if (kind === "complete" && needsResponse && !currentResponse.trim()) {
-      setFeedback("한 문장만 적고 완료해요.");
+      setFeedback("답 쓰는 곳에 한 문장만 먼저 적어 주세요.");
+      return;
+    }
+    if (kind === "complete" && quizRequired && !quizAnswered) {
+      setFeedback("확인 질문을 하나 고른 뒤 다음 단계로 넘어가요.");
       return;
     }
     setBusy(kind);
@@ -2215,6 +2242,10 @@ function StudentTaskScreen({
   const progress = task.steps.length ? Math.round((completed.size / task.steps.length) * 100) : 0;
   const supportOptions = normalizeSupportOptions(task.card.supportOptionsJson);
   const needsResponse = stepNeedsWrittenResponse(step);
+  const quizRequired = hasSupportOption(supportOptions, "repeat_check");
+  const quizAnswered =
+    Boolean(selectedAnswer) ||
+    task.logs.some((log) => log.stepId === step.id && log.eventType === "quiz_answered");
   const helpSentenceViewed = task.logs.some(
     (log) => log.stepId === step.id && log.eventType === "help_sentence_viewed",
   );
@@ -2222,6 +2253,8 @@ function StudentTaskScreen({
   const stepInstruction = splitStepInstruction(step.stepText);
   const problemText = task.lesson?.assignmentInstruction?.trim() || task.card.goal || task.card.title;
   const materialText = materialTextForTask(task);
+  const canComplete = !busy && (!needsResponse || Boolean(currentResponse.trim())) && (!quizRequired || quizAnswered);
+  const completeLabel = currentIndex >= task.steps.length - 1 ? "완료하고 돌아보기" : "완료하고 다음 단계";
 
   if (allDone) {
     const completedStepCount = completed.size;
@@ -2336,15 +2369,16 @@ function StudentTaskScreen({
           <p>{stepInstruction.phase}</p>
         </div>
         <h2>{stepInstruction.text}</h2>
-        <VisualHintView hint={step.visualHintJson} />
+        <VisualHintView hint={step.visualHintJson} activeIndex={currentIndex} />
         {needsResponse ? (
           <label className="mvp-step-response" htmlFor={`student-response-${step.id}`}>
             <span>
               답 쓰는 곳
-              <b>짧게 한 문장만 적어도 괜찮아요.</b>
+              <b>여기에 적어야 다음 단계로 넘어가요.</b>
             </span>
             <textarea
               id={`student-response-${step.id}`}
+              aria-label="답 쓰는 곳"
               value={currentResponse}
               onChange={(event) => setCurrentResponse(event.target.value)}
               placeholder={responsePlaceholder(step, task)}
@@ -2354,6 +2388,24 @@ function StudentTaskScreen({
         ) : (
           <p className="mvp-step-guide">읽고 나서 아래 확인 질문을 눌러요.</p>
         )}
+        <div className="mvp-step-checklist" aria-label="다음 단계로 가기 전 확인할 일">
+          {needsResponse ? (
+            <span className={currentResponse.trim() ? "is-done" : ""}>
+              <CheckCircle2 size={15} />
+              답을 적었어요
+            </span>
+          ) : null}
+          {quizRequired ? (
+            <span className={quizAnswered ? "is-done" : ""}>
+              <CheckCircle2 size={15} />
+              확인 질문을 골랐어요
+            </span>
+          ) : null}
+          <span className={canComplete ? "is-ready" : ""}>
+            <ChevronRight size={15} />
+            {completeLabel}
+          </span>
+        </div>
         {feedback ? <p className="mvp-feedback">{feedback}</p> : null}
       </article>
 
@@ -2425,7 +2477,7 @@ function StudentTaskScreen({
           다시 쉽게 말해줘
         </button>
         <button className="mvp-primary" onClick={() => void action("complete")} disabled={Boolean(busy)} type="button">
-          완료했어요
+          {busy === "complete" ? "저장 중..." : completeLabel}
         </button>
       </div>
     </section>
