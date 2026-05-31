@@ -1324,8 +1324,12 @@
 
 .mvp-phone {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 430px);
-  min-height: calc(100vh - 48px);
+  height: calc(100vh - 48px);
+  min-height: 720px;
+  max-height: 860px;
   overflow: hidden;
   border: 1px solid #d2deeb;
   border-radius: 34px;
@@ -1334,6 +1338,7 @@
 }
 
 .mvp-phone-top {
+  flex: 0 0 72px;
   height: 72px;
   display: flex;
   align-items: center;
@@ -1368,6 +1373,10 @@
 .mvp-student-task,
 .mvp-review,
 .mvp-student-complete {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
   padding: 22px 20px 104px;
 }
 
@@ -2133,12 +2142,15 @@
 
   .mvp-phone {
     width: 100%;
+    height: 100vh;
     min-height: 100vh;
+    max-height: none;
     border: 0;
     border-radius: 0;
   }
 
   .mvp-phone-top {
+    flex-basis: 60px;
     height: 60px;
     padding: 0 18px;
   }
@@ -2267,7 +2279,7 @@
   }
 
   .mvp-phone-bottom {
-    position: fixed;
+    position: absolute;
   }
 }
 

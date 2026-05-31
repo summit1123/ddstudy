@@ -2094,6 +2094,7 @@ function StudentTaskScreen({
     setSelectedAnswer("");
     setFeedback("");
     setRevealedHelpStepId("");
+    document.querySelector(".mvp-student-task")?.scrollTo({ top: 0, behavior: "smooth" });
   }, [step?.id]);
 
   async function action(kind: "confused" | "simplify" | "help-sentence" | "complete") {
